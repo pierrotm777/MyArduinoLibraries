@@ -1,0 +1,36 @@
+#######################################
+# Syntax Coloring Map For Time
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+time_t	KEYWORD1
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+now	KEYWORD2
+Second	KEYWORD2
+Minute	KEYWORD2
+Hour	KEYWORD2
+Day	KEYWORD2
+Month	KEYWORD2
+Year	KEYWORD2
+isAM	KEYWORD2
+isPM	KEYWORD2
+weekday	KEYWORD2
+setTime	KEYWORD2
+makeTime	KEYWORD2
+adjustTime	KEYWORD2
+setSyncProvider	KEYWORD2
+setSyncInterval	KEYWORD2
+timeStatus	KEYWORD2
+TimeLib	KEYWORD2
+tmElements_t	KEYWORD2
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################

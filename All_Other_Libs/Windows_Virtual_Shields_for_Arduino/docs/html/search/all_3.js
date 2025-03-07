@@ -1,0 +1,27 @@
+var searchData=
+[
+  ['camera',['Camera',['../class_camera.html',1,'Camera'],['../class_camera.html#ac8b75070d261ce8d950badb5e1f30ca3',1,'Camera::Camera()']]],
+  ['camera_2ecpp',['Camera.cpp',['../_camera_8cpp.html',1,'']]],
+  ['camera_2eh',['Camera.h',['../_camera_8h.html',1,'']]],
+  ['capture',['capture',['../class_camera.html#ad50b8f93c5a9d481a258dea2807d77a9',1,'Camera']]],
+  ['cargo',['cargo',['../struct_shield_event.html#a6ea0a1a12e681d72e0b5fdd7e2480f70',1,'ShieldEvent']]],
+  ['cc',['CC',['../_email_8cpp.html#a4c252b2dee21cd131d0902fc46b09e00',1,'CC():&#160;Email.cpp'],['../_sms_8cpp.html#a4c252b2dee21cd131d0902fc46b09e00',1,'CC():&#160;Sms.cpp']]],
+  ['char',['Char',['../_sensor_models_8h.html#ad851613478a98a0140ed7ee63c488275adf35c44092249df12865ec3ca08eb000',1,'SensorModels.h']]],
+  ['charvalue',['charValue',['../struct_e_ptr.html#a0dd9b754e2b06443b0a5a224bd4dc8c1',1,'EPtr']]],
+  ['checksensors',['checkSensors',['../class_virtual_shield.html#a55a0d8a1142f7c970217119534fa7ec3',1,'VirtualShield']]],
+  ['clear',['clear',['../class_text.html#a6213de0d5788b65ab32a5bfad05d1aae',1,'Text::clear()'],['../_text_8h.html#ac22a93c4e7c172b0cc8b4095c32b57fd',1,'CLEAR():&#160;Text.h']]],
+  ['clearid',['clearId',['../class_text.html#a5880eb48635943798a3b0ad5698f4a73',1,'Text']]],
+  ['clearline',['clearLine',['../class_text.html#ae7d34abfb61a197e4bb496ea2b3b1792',1,'Text']]],
+  ['color',['color',['../union_a_r_g_b.html#a965f69d897f22fd7cd675f05dc2459fa',1,'ARGB']]],
+  ['colors_2eh',['Colors.h',['../_colors_8h.html',1,'']]],
+  ['compass',['Compass',['../class_compass.html',1,'Compass'],['../class_compass.html#a0ff3bf68f600820946b4fc7366e5d263',1,'Compass::Compass()']]],
+  ['compass_2ecpp',['Compass.cpp',['../_compass_8cpp.html',1,'']]],
+  ['compass_2eh',['Compass.h',['../_compass_8h.html',1,'']]],
+  ['confidence',['confidence',['../class_recognition.html#a87877f9e49c07960459c09dabfbd0252',1,'Recognition::confidence()'],['../_recognition_8cpp.html#a48f749759a132fcebc7c3057a49e75e8',1,'CONFIDENCE():&#160;Recognition.cpp']]],
+  ['confidence_5ferror',['Confidence_Error',['../_recognition_8h.html#a085de30d6eaaeb51974c30ac6fc7233a',1,'Recognition.h']]],
+  ['confidence_5fhigh',['Confidence_High',['../_recognition_8h.html#a07c53db7b775220964e10f8191cb9a45',1,'Recognition.h']]],
+  ['confidence_5flow',['Confidence_Low',['../_recognition_8h.html#a2792630164f8565d7370d43a65bc8ce6',1,'Recognition.h']]],
+  ['confidence_5fmedium',['Confidence_Medium',['../_recognition_8h.html#a198da3023e278ac8ee6bd87219f93e22',1,'Recognition.h']]],
+  ['confidence_5frejected',['Confidence_Rejected',['../_recognition_8h.html#aa3479fae111d94f571401d1b54112630',1,'Recognition.h']]],
+  ['connect_5fhash',['CONNECT_HASH',['../_virtual_shield_8h.html#a332b8774cc1db1567a3c03104f3c58d8',1,'VirtualShield.h']]]
+];

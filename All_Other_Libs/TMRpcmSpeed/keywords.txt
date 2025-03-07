@@ -1,0 +1,42 @@
+#######################################
+# Syntax Coloring Map TMRpcmSpeed
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+TMRpcmSpeed	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+play	KEYWORD2
+stopPlayback	KEYWORD2
+volume	KEYWORD2
+setVolume	KEYWORD2
+disable	KEYWORD2
+pause	KEYWORD2
+quality	KEYWORD2
+loop	KEYWORD2
+speakerPin	KEYWORD2
+isPlaying	KEYWORD2
+CSPin	KEYWORD2
+speed	KEYWORD2
+wavInfo	KEYWORD2
+rfPlaying	KEYWORD2
+SAMPLE_RATE	KEYWORD2
+orgsamplerate	KEYWORD2
+speakerPin2	KEYWORD2
+wavInfo	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+EKMFA_RX_RESET_DURATION_IDX	LITERAL1
+EKMFA_RX_BURST_DURATION_IDX	LITERAL1
+EKMFA_RX_INTER_BURST_DURATION_IDX	LITERAL1
+EKMFA_RX_LAST_RECALL_DURATION_IDX	LITERAL1
+A_AREA	LITERAL1
+D_AREA	LITERAL1
+EKMFA_FCT_MAP_TBL	LITERAL1
+EKMFA_FCT_POS	LITERAL1

@@ -1,0 +1,13 @@
+# Syntax Colouring Map For Text Parser
+
+
+# Data types (KEYWORD1)
+textparser	KEYWORD1
+TextParser	KEYWORD1
+
+
+# Methods and Functions (KEYWORD2)
+parse	KEYWORD2
+parseLine	KEYWORD2
+
+
