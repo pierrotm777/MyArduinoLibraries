@@ -1,0 +1,28 @@
+#######################################
+# Syntax Coloring Map GenCli
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+GenCli	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+GenCli_getCmd	KEYWORD2
+GenCli_getStrIdxFromTbl	KEYWORD2
+GenCli_getCmdCodeIdx	KEYWORD2
+GenCli_displayCmdErr	KEYWORD2
+GenCli_displayCmdParsedInFld	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+GEN_CLI_CMD_FIELD_MAX_NB	LITERAL1
+GEN_CLI_FLD_TBL_ATTR	LITERAL1
+GEN_CLI_FLD_TBL_LIST	LITERAL1
+GEN_CLI_CMD_TBL	LITERAL1
+GEN_CLI_ERR_UNKNOWN_FIELD	LITERAL1
+GEN_CLI_ERR_ID	LITERAL1
+GEN_CLI_ERR_ARG	LITERAL1

@@ -1,0 +1,20 @@
+#######################################
+# Syntax Coloring Map Conrad7Tx
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+Conrad7Tx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+updateOrder	KEYWORD2
+process	KEYWORD2
+debugProtocol	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################

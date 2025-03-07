@@ -1,0 +1,32 @@
+#######################################
+# Syntax Coloring Map RcTxMsx
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+RcTxMsx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+setMsxMode	KEYWORD2
+scheduleMsxFrame	KEYWORD2
+setEepBaseAddrAndGroupNb	KEYWORD2
+getEepWord	KEYWORD2
+updateEepWord	KEYWORD2
+getEepTotalSize	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+RC_TX_MSX_MS16_ROBBE_8369	LITERAL1
+RC_TX_MSX_MS12PROP2_ROBBE_8370	LITERAL1
+RC_TX_MSX_MS8_ROBBE_FUTABA_1513	LITERAL1
+RC_TX_MSX_MULTINAUT_MPX_75882	LITERAL1
+RC_TX_MSX_NAUTIC_GRP_4159	LITERAL1
+
+RC_TX_MSX_DBG_FUT	LITERAL1
+RC_TX_MSX_DBG_GRP	LITERAL1
+RC_TX_MSX_DBG_MPX	LITERAL1

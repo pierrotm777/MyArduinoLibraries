@@ -1,0 +1,32 @@
+#######################################
+# Syntax Coloring Map Cppm
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+Cppm	KEYWORD1
+CppmGen	KEYWORD1
+CppmReader	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+isSynchro	KEYWORD2
+suspend	KEYWORD2
+resume	KEYWORD2
+width_us	KEYWORD2
+
+detectedChannelNb	KEYWORD2
+ppmPeriod_us	KEYWORD2
+ppmHeader_us	KEYWORD2
+modulation	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+CPPM_GEN_POS_MOD	LITERAL1
+CPPM_GEN_NEG_MOD	LITERAL1
+CPPM_FORWARD_CH_AS_IS	LITERAL1
+CPPM_FORWARD_CH_TO_CH	LITERAL1

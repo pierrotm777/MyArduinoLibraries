@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map Misclib
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+Misclib	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+GetKeywordIdFromTbl	KEYWORD2
+StrSplit	KEYWORD2
+StrSplitRestore	KEYWORD2
+ltrim	KEYWORD2
+rtrim	KEYWORD2
+trim	KEYWORD2
+HexAsciiToInt16	KEYWORD2
+HexAsciiNibbleToInt	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+TBL_ITEM_NB	LITERAL1
+DECL_FLASH_TBL	LITERAL1
+DECL_FLASH_STR	LITERAL1
+DECL_FLASH_STR2	LITERAL1
+DECL_FLASH_STR_TBL	LITERAL1
+TBL_AND_ITEM_NB	LITERAL1
+BUF_AND_BUF_SIZE	LITERAL1

@@ -1,0 +1,29 @@
+#######################################
+# Syntax Coloring Map RcButtonRx
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+RcButtonRx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+getStoredEepromBytes	KEYWORD2
+setPulseMap	KEYWORD2
+setPulseMode	KEYWORD2
+isPulseMode	KEYWORD2
+enterInCalibrationMode	KEYWORD2
+isInCalibrationMode	KEYWORD2
+process	KEYWORD2
+displayButtonPulseWidth	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+RC_BUTTON_RX_VERSION	LITERAL1
+RC_BUTTON_RX_REVISION	LITERAL1
+RC_BUTTON_RX_EEPROM_BYTES	LITERAL1

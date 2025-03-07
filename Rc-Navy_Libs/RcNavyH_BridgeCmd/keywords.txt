@@ -1,0 +1,19 @@
+#######################################
+# Syntax Coloring Map H_BridgeCmd
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+H_BridgeCmd	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+command	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+H_BRIDGE_CMD_VERSION	LITERAL1
+H_BRIDGE_CMD_REVISION	LITERAL1

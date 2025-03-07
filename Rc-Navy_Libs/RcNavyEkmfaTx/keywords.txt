@@ -1,0 +1,31 @@
+#######################################
+# Syntax Coloring Map EkmfaTx
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+EkmfaTxClass	KEYWORD1
+EkmfaTx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+updateOrder	KEYWORD2
+process	KEYWORD2
+setEepBaseAddr	KEYWORD2
+getEepTotalSize	KEYWORD2
+updateDurationMs	KEYWORD2
+getEepDurationMs	KEYWORD2
+debugProtocol	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+EKMFA_TX_RESET_DURATION_IDX	LITERAL1
+EKMFA_TX_BURST_DURATION_IDX	LITERAL1
+EKMFA_TX_INTER_BURST_DURATION_IDX	LITERAL1
+EKMFA_TX_LAST_RECALL_DURATION_IDX	LITERAL1
+EKMFA_TX_LAST_CMD_REPEAT_SUPPORT	LITERAL1
+EKMFA_TX_CMD_OPTIMIZATION_SUPPORT	LITERAL1
