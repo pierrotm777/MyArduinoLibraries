@@ -1,0 +1,44 @@
+#######################################
+# Syntax MLink
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+MLinkEx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin		KEYWORD2
+werte		KEYWORD2
+get		KEYWORD2
+act_servo	KEYWORD2
+Return		KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+SETW	LITERAL1
+GETW	LITERAL1
+SETE	LITERAL1
+GETE	LITERAL1
+KD   	LITERAL1
+ML_V     	LITERAL1
+ML_A    	LITERAL1
+ML_MpS   	LITERAL1
+ML_KMpH  	LITERAL1
+ML_UpMIN 	LITERAL1
+ML_GRADC 	LITERAL1
+ML_GRAD  	LITERAL1
+ML_M     	LITERAL1
+ML_VHKAP 	LITERAL1
+ML_VHSIG 	LITERAL1
+ML_MAH   	LITERAL1
+ML_ML   	LITERAL1
+ML_HPA   	LITERAL1
+ML_KM   	LITERAL1
+ML_TBD14	LITERAL1 
+ML_TBD15	LITERAL1
+

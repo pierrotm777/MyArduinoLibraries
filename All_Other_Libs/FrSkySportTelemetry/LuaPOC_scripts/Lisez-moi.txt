@@ -1,0 +1,12 @@
+Salut,
+Merci pour la bibliothèque.
+Je développe mon propre stabilisateur et je voulais lire et définir des configurations à l'aide de l'émetteur comme c'est le cas pour les SXR.
+Après quelques recherches, j'ai compris quelques choses que je devais changer pour que cela fonctionne.
+Pour tous ceux qui pourraient trouver utile, je joins un exemple de code et quelques points clés :
+1. Création d'un capteur spécial appelé StabilizerSensor (commencé avec le capteur FCS afin qu'il partage le même identifiant, vous devrez donc changer d'identifiant si vous avez déjà utilisé l'identifiant FCS)
+2. Les données de télémétrie ne sont placées sur la file que Pop utilise que si l'ID de données est compris entre 0x5000 et 0x52FF (ID de trame == 0x10), ainsi que les paquets avec un ID de trame égal à 0x32. La bibliothèque utilise l'identifiant de cadre 0x10, j'ai donc utilisé 0x5000 comme identifiant de données.
+3. Les scripts de configuration sxr lua ont donné quelques indices, mais ils utilisent les ID de cadre 0x32 et 0x31, donc la même approche exacte ne fonctionne pas avec cette bibliothèque (comme indiqué ci-dessus, cette bibliothèque utilise 0x10). Vous devez donc noter que le fichier push LUA POC inclus utilise 0x10 comme identifiant de cadre car c'est ce que recherche la bibliothèque.
+4. Vous devez noter que le lua PushPOC utilise 2 comme identifiant de capteur, mais l'identifiant du capteur Stabilizer dans le code Teensy que j'ai défini sur 3. C'est parce que l'identifiant de SportTelemetryPush à la valeur hexadécimale est un décalage par rapport à ce mappage de bibliothèque de l'identifiant à la valeur hexadécimale . Je ne sais pas pourquoi, n'a pas enquêté plus avant.
+5. L'exemple d'encodage n'affichera pas le capteur sur l'écran de télémétrie car il utilise 0x5000 comme identifiant de données.
+
+J'espère que quelqu'un trouvera cela utile.

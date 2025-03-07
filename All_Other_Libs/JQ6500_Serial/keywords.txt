@@ -1,0 +1,76 @@
+#######################################
+# Syntax Coloring Map For JQ6500_Serial
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+JQ6500_Serial	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+reset	KEYWORD2
+play	KEYWORD2
+restart	KEYWORD2
+pause	KEYWORD2
+next	KEYWORD2
+prev	KEYWORD2
+nextFolder	KEYWORD2
+prevFolder	KEYWORD2
+playFileByIndexNumber	KEYWORD2
+playFileNumberInFolderNumber	KEYWORD2
+volumeUp	KEYWORD2
+volumeDn	KEYWORD2
+setVolume	KEYWORD2
+prev	KEYWORD2
+setEqualizer	KEYWORD2
+setLoopMode	KEYWORD2
+setSource	KEYWORD2
+getStatus	KEYWORD2
+getVolume	KEYWORD2
+getEqualizer	KEYWORD2
+getLoopMode	KEYWORD2
+countFiles	KEYWORD2
+countFolders	KEYWORD2
+currentFileIndexNumber	KEYWORD2
+currentFilePositionInSeconds	KEYWORD2
+currentFileLengthInSeconds	KEYWORD2
+currentFileName	KEYWORD2
+sendCommand	KEYWORD2
+sendCommandWithUnsignedIntResponse	KEYWORD2
+getVersion	KEYWORD2
+readBytesUntilAndIncluding	KEYWORD2
+waitUntilAvailable	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+MP3_EQ_NORMAL	LITERAL1
+MP3_EQ_POP	LITERAL1
+MP3_EQ_ROCK	LITERAL1
+MP3_EQ_JAZZ	LITERAL1
+MP3_EQ_CLASSIC	LITERAL1
+MP3_EQ_BASS	LITERAL1
+
+MP3_SRC_SDCARD	LITERAL1
+MP3_SRC_BUILTIN	LITERAL1
+
+MP3_LOOP_ALL	LITERAL1
+MP3_LOOP_FOLDER	LITERAL1
+MP3_LOOP_ONE	LITERAL1
+MP3_LOOP_RAM	LITERAL1
+MP3_LOOP_ONE_STOP	LITERAL1
+MP3_LOOP_NONE	LITERAL1
+
+MP3_STATUS_STOPPED	LITERAL1
+MP3_STATUS_PLAYING	LITERAL1
+MP3_STATUS_PAUSED	LITERAL1
+

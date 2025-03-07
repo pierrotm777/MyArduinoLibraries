@@ -1,0 +1,47 @@
+/*
+  FrSky Txt Status sensor class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  (c) Pawelsky 20210509
+  Not for commercial use
+*/
+
+#include "FrSkySportSensorStatus.h" 
+
+FrSkySportSensorStatus::FrSkySportSensorStatus(SensorId id) : FrSkySportSensor(id) { }
+
+void FrSkySportSensorStatus::setData(char Txt)
+{
+  TxtData = (uint32_t)(Txt * 10);
+}
+
+uint16_t FrSkySportSensorStatus::send(FrSkySportSingleWireSerial& serial, uint8_t id, uint32_t now)
+{
+  uint16_t dataId = SENSOR_NO_DATA_ID;
+  if(sensorId == id)
+  {
+    switch(sensorDataIdx)
+    {
+      case 0:
+        sendSingleData(serial, STATUS_TXT_DATA_ID, dataId, TxtData, STATUS_TXT_DATA_PERIOD, TxtTime, now);
+        break;
+    }
+    sensorDataIdx++;
+    if(sensorDataIdx >= STATUS_DATA_COUNT) sensorDataIdx = 0;
+  }
+  return dataId;
+}
+
+uint16_t FrSkySportSensorStatus::decodeData(uint8_t id, uint16_t appId, uint32_t data)
+{
+  if((sensorId == id) || (sensorId == FrSkySportSensor::ID_IGNORE))
+  {
+    switch(appId)
+    {
+      case STATUS_TXT_DATA_ID:
+        Txt = data / 10.0;
+        return appId;
+    }
+  }
+  return SENSOR_NO_DATA_ID;
+}
+
+float FrSkySportSensorStatus::getTxt() { return Txt; }

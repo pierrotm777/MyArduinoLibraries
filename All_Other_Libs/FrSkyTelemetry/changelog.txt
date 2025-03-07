@@ -1,0 +1,14 @@
+FrSkyTelemetry library changelog
+--------------------------------------
+Version 20170831
+  Corrected sending the GPS sensor altitude data that was overwritting the FVAs sensor altitude.
+  Added support for 168 processor based and Teensy LC/3.5/3.6 boards and updated examples
+
+Version 20160124
+  Added vertical speed to the FVAS sensor
+
+Version 20150730
+  swapped order of parameters in FAS sensor setData method
+
+Version 20150724
+  initial version of the library
