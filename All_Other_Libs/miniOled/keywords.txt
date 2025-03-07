@@ -1,0 +1,44 @@
+#######################################
+# Syntax For OLED
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+init		KEYWORD1
+wideFont	KEYWORD1
+chrSpace	KEYWORD1
+drawLine	KEYWORD1
+printString	KEYWORD1
+printInt	KEYWORD1
+clearDisplay	KEYWORD1
+setGrayLevel	KEYWORD1
+setTextXY	KEYWORD1
+clearDisplay	KEYWORD1
+printBigNumber	KEYWORD1
+printNumber	KEYWORD1
+drawBitmap	KEYWORD1
+setCursorXY	KEYWORD1
+setPowerOff	KEYWORD1
+setPowerOn	KEYWORD1
+setPageMode	KEYWORD1
+setHorizontalMode	KEYWORD1
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+
+
+
+

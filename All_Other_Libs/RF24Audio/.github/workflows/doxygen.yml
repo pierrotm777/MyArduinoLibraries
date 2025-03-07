@@ -1,0 +1,16 @@
+name: DoxyGen build
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-docs:
+    uses: nRF24/.github/.github/workflows/build_docs.yaml@main
+    with:
+      deploy-gh-pages: ${{ github.event_name == 'push' }} # happens only on master branch
+    secrets: inherit

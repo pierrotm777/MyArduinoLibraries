@@ -1,0 +1,6 @@
+PulseInput	KEYWORD1
+PulseFilter	KEYWORD1
+attachPulseInput	KEYWORD2
+detachPulseInput	KEYWORD2
+
+# NOTE: seperate keywords with single tab

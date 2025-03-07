@@ -1,0 +1,46 @@
+NazaCanDecoder library changelog
+------------------------------
+Version 20171104
+  [FIX] fixed compensated heading calculation which is now using quaternions correctly
+  [FIX] minor correction in comments
+
+Version 20160420
+  [NEW] added function getMotorOut to return motor outputs
+
+Version 20150211
+  [FIX] extended roll angle range to -180 ~ 180 degrees
+  [FIX] using compensated heading calculated by FC
+  [NEW] added installation and wiring diagrams for AllInOne v0.2 shield
+  [NEW] updated comments
+
+Version 20150111
+  [FIX] corrected the 0926 message id (was 2609).
+
+Version 20150108
+  [NEW] added reading smart battery data (e.g. from Phantom controller). Use GET_SMART_BATTERY_DATA define to enable.
+
+Version 20140921
+  [FIX] fixed inverted east/west heading
+  [NEW] updated examples to include DGPS fix indication
+  [NEW] added IO_1 - IO_4 defines for IO pin on AllInOne board v0.2
+  [NEW] added SPI.h include to logger example for compatibility with Teensyduino 1.20
+
+Version 20140628
+  [NEW] added functions to get HDOP and VDOP (getHdop/getVdop)
+  [NEW] added DGPS fix indication
+  [FIX] corrected sign of the VSI value from GPS
+
+Version 20140621
+  [NEW] added function to return non-tilt compensated heading (getHeadingNc)
+  [NEW] added fuction to return VSI from GPS (getGpsVsi)
+  [FIX] VSI (barometric) is now taken from message 1002 instead of 1009
+  [NEW] added additional comments
+  [NEW] added connection diagram with shields
+
+Version 20140504_beta
+  [NEW] added heading tilt compensation
+  [NEW] added example that logs data to SD card
+  [NEW] added selection of output serial port in examples (SERIAL_PORT define). Deafault is the Teensy's USB port.
+
+Version 20140414_beta
+  initial beta version of the library

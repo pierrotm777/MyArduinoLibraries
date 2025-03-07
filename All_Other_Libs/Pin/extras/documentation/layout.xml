@@ -1,0 +1,8 @@
+<doxygenlayout version="1.0">
+  <navindex>
+    <tab type="mainpage" visible="yes" title="Home"/>
+    <tab type="classlist" visible="yes" title="API" intro=""/>
+    <tab type="examples" visible="yes" title="Examples" intro=""/>
+    <tab type="filelist" visible="yes" title="Files" intro=""/>
+  </navindex>
+</doxygenlayout>

@@ -1,0 +1,7 @@
+SerialMux	KEYWORD1
+serialMux	KEYWORD1
+VSerial		KEYWORD1
+Buffer		KEYWORD1
+read		KEYWORD2
+write		KEYWORD2
+peek		KEYWORD2
