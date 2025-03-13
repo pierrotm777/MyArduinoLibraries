@@ -2,24 +2,19 @@
 
 #include <stdint.h>
 
-#if !defined(PACKED)
 #define PACKED __attribute__((packed))
-#endif
 
-#define CRSF_BAUDRATE           420000  // for receiverd only
+#define CRSF_BAUDRATE           420000
 #define CRSF_NUM_CHANNELS 16
-#define CRSF_CHANNEL_VALUE_MIN  172 // 987us - actual CRSF min is 0 with E.Limits on
+#define CRSF_CHANNEL_VALUE_MIN  172
 #define CRSF_CHANNEL_VALUE_1000 191
 #define CRSF_CHANNEL_VALUE_MID  992
 #define CRSF_CHANNEL_VALUE_2000 1792
-#define CRSF_CHANNEL_VALUE_MAX  1811 // 2012us - actual CRSF max is 1984 with E.Limits on
+#define CRSF_CHANNEL_VALUE_MAX  1811
 #define CRSF_CHANNEL_VALUE_SPAN (CRSF_CHANNEL_VALUE_MAX - CRSF_CHANNEL_VALUE_MIN)
-#define CRSF_ELIMIT_US_MIN         891   // microseconds for CRSF=0 (E.Limits=ON)
-#define CRSF_ELIMIT_US_MAX         2119  // microseconds for CRSF=1984
-#define CRSF_MAX_PACKET_SIZE 64 // max declared len is 62+DEST+LEN on top of that = 64
-#define CRSF_MAX_PAYLOAD_LEN (CRSF_MAX_PACKET_SIZE - 4) // Max size of payload in [dest] [len] [type] [payload] [crc8]
-#define CRSF_BITS_PER_CHANNEL   11
+#define CRSF_MAX_PACKET_LEN 64
 
+// Clashes with CRSF_ADDRESS_FLIGHT_CONTROLLER
 #define CRSF_SYNC_BYTE 0XC8
 
 enum {
@@ -43,9 +38,7 @@ enum {
 typedef enum
 {
     CRSF_FRAMETYPE_GPS = 0x02,
-    CRSF_FRAMETYPE_VARIO = 0x07,							
     CRSF_FRAMETYPE_BATTERY_SENSOR = 0x08,
-    CRSF_FRAMETYPE_BARO_ALTITUDE = 0x09,									
     CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
     CRSF_FRAMETYPE_OPENTX_SYNC = 0x10,
     CRSF_FRAMETYPE_RADIO_ID = 0x3A,
@@ -84,7 +77,7 @@ typedef enum
 
 typedef struct crsf_header_s
 {
-    uint8_t sync_byte;   // CRSF_SYNC_BYTE
+    uint8_t device_addr; // from crsf_addr_e
     uint8_t frame_size;  // counts size after this byte, so it must be the payload size + 2 (type and crc)
     uint8_t type;        // from crsf_frame_type_e
     uint8_t data[0];
@@ -126,79 +119,8 @@ typedef struct crsfPayloadLinkstatistics_s
 
 typedef struct crsf_sensor_battery_s
 {
-    uint32_t voltage : 16;  // V * 10 big endian
-    uint32_t current : 16;  // A * 10 big endian
-    uint32_t capacity : 24; // mah big endian
-    uint32_t remaining : 8; // %
+    unsigned voltage : 16;  // V * 10 big endian
+    unsigned current : 16;  // A * 10 big endian
+    unsigned capacity : 24; // mah
+    unsigned remaining : 8; // %
 } PACKED crsf_sensor_battery_t;
-
-typedef struct crsf_sensor_gps_s
-{
-    int32_t latitude;   // degree / 10,000,000 big endian
-    int32_t longitude;  // degree / 10,000,000 big endian
-    uint16_t groundspeed;  // km/h / 10 big endian
-    uint16_t heading;   // GPS heading, degree/100 big endian
-    uint16_t altitude;  // meters, +1000m big endian
-    uint8_t satellites; // satellites
-} PACKED crsf_sensor_gps_t;
-
-// crsf = (us - 1500) * 8/5 + 992
-#define US_to_CRSF(us)      ((us) * 8 / 5 + (CRSF_CHANNEL_VALUE_MID - 2400))
-// us = (crsf - 992) * 5/8 + 1500
-#define CRSF_to_US(crsf)    ((crsf) * 5 / 8 + (1500 - 620))
-
-typedef struct crsf_sensor_vario_s
-{
-    int16_t verticalspd; // Vertical speed in cm/s, BigEndian
-} PACKED crsf_sensor_vario_t;
-
-typedef struct crsf_sensor_baro_altitude_s
-{
-    uint16_t altitude; // Altitude in decimeters + 10000dm, or Altitude in meters if high bit is set, BigEndian
-    int16_t verticalspd;  // Vertical speed in cm/s, BigEndian
-} PACKED crsf_sensor_baro_altitude_t;
-
-
-typedef struct crsf_sensor_attitude_s
-{
-    uint16_t pitch;  // pitch in radians, BigEndian
-    uint16_t roll;  // roll in radians, BigEndian
-    uint16_t yaw;  // yaw in radians, BigEndian
-} PACKED crsf_sensor_attitude_t;
-#if !defined(__linux__)
-static inline uint16_t htobe16(uint16_t val)
-{
-#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-    return val;
-#else
-    return __builtin_bswap16(val);
-#endif
-}
-
-static inline uint16_t be16toh(uint16_t val)
-{
-#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-    return val;
-#else
-    return __builtin_bswap16(val);
-#endif
-}
-
-static inline uint32_t htobe32(uint32_t val)
-{
-#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-    return val;
-#else
-    return __builtin_bswap32(val);
-#endif
-}
-
-static inline uint32_t be32toh(uint32_t val)
-{
-#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-    return val;
-#else
-    return __builtin_bswap32(val);
-#endif
-}
-#endif

@@ -1,0 +1,2 @@
+La programmation se fait avec l'interface FTDI et l'IDE.
+Il faut déplacer le cavalier BOOT.
