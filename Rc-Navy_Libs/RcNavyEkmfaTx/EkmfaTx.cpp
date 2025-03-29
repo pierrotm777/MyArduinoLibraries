@@ -336,7 +336,7 @@ uint16_t EkmfaTxClass::getEepTotalSize(void)
     return(2 * EKMFA_TX_EEP_WORD_NB);
 }
 
-#if defined(ARDUINO_ARCH_RP2040)
+#if defined(ARDUINO_ARCH_RP2040) || defined(__IMXRT1062__)
 #include <EEPROM.h>
 #endif
 uint16_t EkmfaTxClass::getEepDurationMs(uint8_t WordIdx)
@@ -344,10 +344,10 @@ uint16_t EkmfaTxClass::getEepDurationMs(uint8_t WordIdx)
     uint16_t EepAddr, EepWord;
     
     EepAddr = GlobEepBaseAddr + (WordIdx * 2);
-#if not defined(ARDUINO_ARCH_RP2040)
-    EepWord = (uint16_t)eeprom_read_word((const uint16_t *)(uint16_t)(EepAddr));
-#else
+#if defined(ARDUINO_ARCH_RP2040) || defined(__IMXRT1062__)
 	EepWord = (uint16_t)EEPROM.read((uint16_t)(EepAddr));
+#else
+    EepWord = (uint16_t)eeprom_read_word((const uint16_t *)(uint16_t)(EepAddr));
 #endif    
     return(EepWord);
 }
@@ -357,11 +357,13 @@ void EkmfaTxClass::updateDurationMs(uint8_t WordIdx, uint16_t WordValue)
     uint16_t EepAddr;
     
     EepAddr = GlobEepBaseAddr + (WordIdx * 2);
-#if not defined(ARDUINO_ARCH_RP2040)
-    eeprom_update_word((uint16_t *)(uint16_t)(EepAddr), WordValue);
-#else
-	EepWord = EEPROM.update((uint16_t)(EepAddr), WordValue);
+#if defined(ARDUINO_ARCH_RP2040)
+	EEPROM.update((uint16_t)(EepAddr), WordValue);
 	EEPROM.commit();
+#elif defined(__IMXRT1062__)
+	EEPROM.update((uint16_t)(EepAddr), WordValue);
+#else
+    eeprom_update_word((uint16_t *)(uint16_t)(EepAddr), WordValue);
 #endif
 }
 
