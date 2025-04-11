@@ -120,17 +120,3 @@ void FrSkySportTelemetry::setData(uint8_t rssi, float rxBatt)
 {
   if (pollingClass != NULL) pollingClass->setData(rssi, rxBatt);
 }
-
-void FrSkySportTelemetry::addSensor(FrSkySportSensor* new_sensor)
-{
-  // Count sensors (stops at first NULL and add new sensor)
-  for(sensorCount = 0; sensorCount < FRSKY_TELEMETRY_MAX_SENSORS; sensorCount++)
-  {
-    if(sensors[sensorCount] == NULL)
-    {
-      sensors[sensorCount] = new_sensor;
-      sensorCount++;
-      break;
-    }
-  }
-}

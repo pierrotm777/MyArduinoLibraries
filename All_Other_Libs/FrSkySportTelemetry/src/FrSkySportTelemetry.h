@@ -32,7 +32,6 @@ class FrSkySportTelemetry
                 FrSkySportSensor* sensor28 = NULL);
     uint16_t send();
     void setData(uint8_t rssi, float rxBatt);
-	void addSensor(FrSkySportSensor* new_sensor);
 
   private:
     FrSkySportSensor* sensors[FRSKY_TELEMETRY_MAX_SENSORS];

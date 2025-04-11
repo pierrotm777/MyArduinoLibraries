@@ -37,7 +37,7 @@ class FrSkySportSingleWireSerial
 #endif
                   };
 #elif defined(ESP8266) 
-    enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SOFT_SERIAL_PIN_3 = 3, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_D2 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_D1 = 5, SOFT_SERIAL_PIN_12 = 12, SOFT_SERIAL_PIN_D6 = 12,
+    enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_D2 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_D1 = 5, SOFT_SERIAL_PIN_12 = 12, SOFT_SERIAL_PIN_D6 = 12,
                     SOFT_SERIAL_PIN_13 = 13, SOFT_SERIAL_PIN_D7 = 13, SOFT_SERIAL_PIN_14 = 14, SOFT_SERIAL_PIN_D5 = 14, SOFT_SERIAL_PIN_15 = 15 , SOFT_SERIAL_PIN_D8 = 15 };
 #elif defined(__AVR_ATmega2560__)
     enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SERIAL_1_EXTINV = EXTINV_FLAG | 1, SERIAL_2_EXTINV = EXTINV_FLAG | 2, SERIAL_3_EXTINV = EXTINV_FLAG | 3,
@@ -62,7 +62,7 @@ class FrSkySportSingleWireSerial
     void sendCrc();
 #if defined(TEENSY_HW)
 #if defined(__IMXRT1062__)
-    void initTeensySerial(SerialId id, HardwareSerial *serial, volatile uint32_t *uartCtrl1, volatile uint32_t *uartCtrl2);
+    void initTeensySerial(SerialId id, HardwareSerial *serial, volatile uint32_t *uartCtrl1, volatile uint32_t *uartCtrl2, uint8_t uartCtrl2Daisy);
     volatile uint32_t *uartCtrl;
 #else
     void initTeensySerial(SerialId id, HardwareSerial *serial, volatile uint8_t *uartCtrl1, volatile uint8_t *uartCtrl2);
