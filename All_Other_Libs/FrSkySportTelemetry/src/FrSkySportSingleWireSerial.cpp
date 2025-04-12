@@ -1,6 +1,6 @@
 /*
   FrSky single wire serial class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20210110
+  (c) Pawelsky 20250412
   Not for commercial use
 */
 
@@ -116,6 +116,8 @@ void FrSkySportSingleWireSerial::setMode(SerialMode mode)
     if(mode == TX) pinMode(serialId, OUTPUT);
     else if(mode == RX) pinMode(serialId, INPUT);
   }
+#else
+  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
 #endif
 }
 

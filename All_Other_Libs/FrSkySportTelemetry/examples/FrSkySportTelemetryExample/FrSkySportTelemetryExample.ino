@@ -1,6 +1,6 @@
 /*
   FrSky S-Port Telemetry library example
-  (c) Pawelsky 20210509
+  (c) Pawelsky 20250412
   Not for commercial use
   
   Note that you need Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) or ATmega328P based (e.g. Pro Mini, Nano, Uno) board and FrSkySportTelemetry library for this example to work

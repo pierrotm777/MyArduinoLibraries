@@ -1,6 +1,6 @@
 /*
   FrSky single wire serial class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
-  (c) Pawelsky 20210108
+  (c) Pawelsky 20250412
   Not for commercial use
 */
 
@@ -43,9 +43,11 @@ class FrSkySportSingleWireSerial
     enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SERIAL_1_EXTINV = EXTINV_FLAG | 1, SERIAL_2_EXTINV = EXTINV_FLAG | 2, SERIAL_3_EXTINV = EXTINV_FLAG | 3,
                     SOFT_SERIAL_PIN_10 = 10, SOFT_SERIAL_PIN_11 = 11, SOFT_SERIAL_PIN_12 = 12, SOFT_SERIAL_PIN_13 = 13, SOFT_SERIAL_PIN_14 = 14, SOFT_SERIAL_PIN_15 = 15,
                     SOFT_SERIAL_PIN_50 = 50, SOFT_SERIAL_PIN_51 = 51, SOFT_SERIAL_PIN_52 = 52, SOFT_SERIAL_PIN_53 = 53 };
-#else
+#elif defined(__AVR_ATmega328P__)
     enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SOFT_SERIAL_PIN_2 = 2, SOFT_SERIAL_PIN_3 = 3, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_6 = 6, SOFT_SERIAL_PIN_7 = 7,
                      SOFT_SERIAL_PIN_8 = 8, SOFT_SERIAL_PIN_9 = 9, SOFT_SERIAL_PIN_10 = 10, SOFT_SERIAL_PIN_11 = 11, SOFT_SERIAL_PIN_12 = 12 };
+#else
+  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
 #endif
     FrSkySportSingleWireSerial();
     void begin(SerialId id);

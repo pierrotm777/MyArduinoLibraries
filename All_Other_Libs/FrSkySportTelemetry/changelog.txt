@@ -1,5 +1,10 @@
 FrSkySportTelemetry library changelog
 --------------------------------------
+Version 20250412
+  [FIX] Fixed Serial2 and Serial4 not working correctly on Teensy 4.x
+  [FIX] Corrected #define POLLING_ENABLED in FrSkySportTelemetryExample.ino to be commented out by default
+  [FIX] Added some missing error messages if an unknown board is used 
+
 Version 20210509
   [NEW] Added Gas Suite sensor
   [NEW] Simplified send function in sensors
