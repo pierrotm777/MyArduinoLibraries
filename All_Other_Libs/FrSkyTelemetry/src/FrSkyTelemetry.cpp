@@ -1,62 +1,88 @@
-/*
+/* =================================================
   FrSky Telemetry for Teensy 3.x/LC and 328P/168 based boards (e.g. Pro Mini, Nano, Uno)
   (c) Pawelsky 20170831
   Not for commercial use
+
+250426 Modified by Pete (El_Supremo) to also allow use of
+Teensy 4.0 and T4.1 - a loopback test works but this
+has not been tested "live".
+At the moment, SERIAL_USB can't be used 
 */
 
-#include "FrSkyTelemetry.h" 
+#include "FrSkyTelemetry.h"
 
 FrSkyTelemetry::FrSkyTelemetry() : enabledSensors(SENSOR_NONE), cellIdx(0), frame1Time(0), frame2Time(0), frame3Time(0) {}
 
+// Add code for T4.x - Pete El_Supremo
+// Teensy 4.0 has 7 Serial ports. Teensy 4.1 has 8
+#if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
+HardwareSerial *T_port[9] = {
+  NULL, // Stand-in for the USB Serial which is handled differently
+  &Serial1,
+  &Serial2,
+  &Serial3,
+  &Serial4,
+  &Serial5,
+  &Serial6,
+  &Serial7
+#if defined(ARDUINO_TEENSY41)
+  ,
+  &Serial8
+#endif
+};
+#endif
 void FrSkyTelemetry::begin(FrSkyTelemetry::SerialId id)
 {
-#if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK66FX1M0__) || defined(__MK64FX512__)
-  if(id == SERIAL_USB) // Not really a telemetry port, but added for debug purposes via USB
-  {
+// Handle the T4.0 and 4.1 separately
+#if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40)
+
+// Can't get this to work - sort it out later
+#ifdef NOTDEF
+  if(id == SERIAL_USB) { // Not really a telemetry port, but added for debug purposes via USB
     port = &Serial;
     Serial.begin(9600);
-  }
-  else if(id == SERIAL_1)
+  } else 
+#endif
   {
+    // Select the port
+    port = T_port[id];
+    // Start up the port with Tx Inverted
+    port->begin(9600,0x20);
+  }
+#elif defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK66FX1M0__) || defined(__MK64FX512__)
+  if(id == SERIAL_USB) { // Not really a telemetry port, but added for debug purposes via USB
+    port = &Serial;
+    Serial.begin(9600);
+  } else if(id == SERIAL_1) {
     port = &Serial1;
     Serial1.begin(9600);
     UART0_C3 = 0x10;  // Invert Serial1 Tx levels
-  }
-  else if(id == SERIAL_2)
-  {
+  } else if(id == SERIAL_2) {
     port = &Serial2;
     Serial2.begin(9600);
     UART1_C3 = 0x10;  // Invert Serial2 Tx levels
-  }
-  else if(id == SERIAL_3)
-  {
+  } else if(id == SERIAL_3) {
     port = &Serial3;
     Serial3.begin(9600);
     UART2_C3 = 0x10;  // Invert Serial3 Tx levels
   }
-  #if defined(__MK66FX1M0__) || defined(__MK64FX512__)
-  else if(id == SERIAL_4)
-  {
+#if defined(__MK66FX1M0__) || defined(__MK64FX512__)
+  else if(id == SERIAL_4) {
     port = &Serial4;
     Serial4.begin(9600);
     UART3_C3 = 0x10;  // Invert Serial4 Tx levels
-  }
-  else if(id == SERIAL_5)
-  {
+  } else if(id == SERIAL_5) {
     port = &Serial5;
     Serial5.begin(9600);
     UART4_C3 = 0x10;  // Invert Serial5 Tx levels
-  }
-  else if(id == SERIAL_6)
-  {
+  } else if(id == SERIAL_6) {
     port = &Serial6;
     Serial6.begin(9600);
     UART5_C3 = 0x10;  // Invert Serial6 Tx levels
   }
-  #endif
+#endif
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
-  if(softSerial != NULL)
-  {
+  if(softSerial != NULL) {
     delete softSerial;
     softSerial = NULL;
   }
@@ -65,7 +91,7 @@ void FrSkyTelemetry::begin(FrSkyTelemetry::SerialId id)
   softSerial->begin(9600);
   pinMode(id, OUTPUT);
 #else
-  #error "Unsupported processor! Only Teesny 3.x and 328P/168 based processors supported.";
+#error "Unsupported processor! Only Teensy 4.1, 4.0, 3.x and 328P/168 based processors supported.";
 #endif
 }
 
@@ -121,7 +147,7 @@ void FrSkyTelemetry::setGpsData(float lat, float lon, float alt, float speed, fl
   FrSkyTelemetry::latBD = FrSkyTelemetry::latBD * 100 + (uint16_t)lat;
   FrSkyTelemetry::latAD = (uint16_t)round((lat - (uint16_t)lat) * 10000.0);
   FrSkyTelemetry::lonEW = (uint16_t)(lon < 0 ? 'W' : 'E');  if(lon < 0) lon = -lon;
-  FrSkyTelemetry::lonBD = (uint16_t)lon; 
+  FrSkyTelemetry::lonBD = (uint16_t)lon;
   lon = (lon - (float)FrSkyTelemetry::lonBD) * 60.0;
   FrSkyTelemetry::lonBD = FrSkyTelemetry::lonBD * 100 + (uint16_t)lon;
   FrSkyTelemetry::lonAD = (uint16_t)round((lon - (uint16_t)lon) * 10000.0);
@@ -161,28 +187,21 @@ void FrSkyTelemetry::setRpmsData(float rpm)
 
 void FrSkyTelemetry::sendSeparator()
 {
-  if(port != NULL)
-  {
+  if(port != NULL) {
     port->write(0x5E);
   }
 }
 
 void FrSkyTelemetry::sendByte(uint8_t byte)
 {
-  if(port != NULL)
-  {
-    if(byte == 0x5E) // use 5D 3E sequence instead of 5E to distinguish between separator character and real data
-    {
+  if(port != NULL) {
+    if(byte == 0x5E) { // use 5D 3E sequence instead of 5E to distinguish between separator character and real data
       port->write(0x5D);
       port->write(0x3E);
-    }
-    else if(byte == 0x5D) // use 5D 3D sequence instead of 5D to distinguish between stuffing character and real data
-    {
+    } else if(byte == 0x5D) { // use 5D 3D sequence instead of 5D to distinguish between stuffing character and real data
       port->write(0x5D);
       port->write(0x3D);
-    }
-    else
-    {
+    } else {
       port->write(byte);
     }
     if(port != NULL) port->flush();
@@ -194,13 +213,10 @@ void FrSkyTelemetry::sendData(uint8_t dataId, uint16_t data, bool bigEndian)
   sendSeparator();
   sendByte(dataId);
   uint8_t *bytes = (uint8_t*)&data;
-  if(bigEndian == false)
-  {
+  if(bigEndian == false) {
     sendByte(bytes[0]);
     sendByte(bytes[1]);
-  }
-  else
-  {
+  } else {
     sendByte(bytes[1]);
     sendByte(bytes[0]);
   }
@@ -210,8 +226,7 @@ void FrSkyTelemetry::sendData(uint8_t dataId, uint16_t data, bool bigEndian)
 bool FrSkyTelemetry::sendFasData()
 {
   bool enabled = enabledSensors & SENSOR_FAS;
-  if(enabled == true)
-  {
+  if(enabled == true) {
     sendData(0x28, current);
     sendData(0x3A, voltageBD);
     sendData(0x3B, voltageAD);
@@ -222,8 +237,7 @@ bool FrSkyTelemetry::sendFasData()
 bool FrSkyTelemetry::sendFgsData()
 {
   bool enabled = enabledSensors & SENSOR_FGS;
-  if(enabled == true)
-  {
+  if(enabled == true) {
     sendData(0x04, fuel);
   }
   return enabled;
@@ -232,11 +246,10 @@ bool FrSkyTelemetry::sendFgsData()
 bool FrSkyTelemetry::sendFlvsData()
 {
   bool enabled = enabledSensors & SENSOR_FLVS;
-  if(enabled == true)
-  {
+  if(enabled == true) {
     // Only send one cell at a time
     if((cell[cellIdx] == 0) || (cellIdx == 12)) cellIdx = 0;
-    sendData(0x06, cell[cellIdx], true);  
+    sendData(0x06, cell[cellIdx], true);
     cellIdx++;
   }
   return enabled;
@@ -245,8 +258,7 @@ bool FrSkyTelemetry::sendFlvsData()
 bool FrSkyTelemetry::sendFvasData()
 {
   bool enabled = enabledSensors & SENSOR_FVAS;
-  if(enabled == true)
-  {
+  if(enabled == true) {
     sendData(0x10, altBD);
     sendData(0x21, altAD);
     sendData(0x30, vsi); // Not documented in FrSky spec, added based on OpenTX sources.
@@ -257,20 +269,19 @@ bool FrSkyTelemetry::sendFvasData()
 bool FrSkyTelemetry::sendGpsData()
 {
   bool enabled = enabledSensors & SENSOR_GPS;
-  if(enabled == true)
-  {
-    sendData(0x01, gpsAltBD);  
-    sendData(0x09, gpsAltAD);  
-    sendData(0x11, speedBD);  
-    sendData(0x19, speedAD);  
+  if(enabled == true) {
+    sendData(0x01, gpsAltBD);
+    sendData(0x09, gpsAltAD);
+    sendData(0x11, speedBD);
+    sendData(0x19, speedAD);
     sendData(0x12, lonBD); // DEVIATION FROM SPEC: FrSky protocol spec says lat shall be sent as big endian, but it reality little endian is expected
     sendData(0x1A, lonAD); // DEVIATION FROM SPEC: FrSky protocol spec says lat shall be sent as big endian, but it reality little endian is expected
-    sendData(0x22, lonEW); // DEVIATION FROM SPEC: FrSky protocol spec says lon shall be sent as big endian, but it reality little endian is expected 
+    sendData(0x22, lonEW); // DEVIATION FROM SPEC: FrSky protocol spec says lon shall be sent as big endian, but it reality little endian is expected
     sendData(0x13, latBD); // DEVIATION FROM SPEC: FrSky protocol spec says lon shall be sent as big endian, but it reality little endian is expected
-    sendData(0x1B, latAD);  
-    sendData(0x23, latNS);  
-    sendData(0x14, cogBD);  
-    sendData(0x1C, cogAD);  
+    sendData(0x1B, latAD);
+    sendData(0x23, latNS);
+    sendData(0x14, cogBD);
+    sendData(0x1C, cogAD);
   }
   return enabled;
 }
@@ -278,12 +289,11 @@ bool FrSkyTelemetry::sendGpsData()
 bool FrSkyTelemetry::sendDateTimeData()
 {
   bool enabled = enabledSensors & SENSOR_GPS;
-  if(enabled == true)
-  {
-    sendData(0x15, dayMonth, true);  
-    sendData(0x16, year);  
-    sendData(0x17, hourMinute, true);  
-    sendData(0x18, second);  
+  if(enabled == true) {
+    sendData(0x15, dayMonth, true);
+    sendData(0x16, year);
+    sendData(0x17, hourMinute, true);
+    sendData(0x18, second);
   }
   return enabled;
 }
@@ -291,11 +301,10 @@ bool FrSkyTelemetry::sendDateTimeData()
 bool FrSkyTelemetry::sendTasData()
 {
   bool enabled = enabledSensors & SENSOR_TAS;
-  if(enabled == true)
-  {
-    sendData(0x24, accX);  
-    sendData(0x25, accY);  
-    sendData(0x26, accZ);  
+  if(enabled == true) {
+    sendData(0x24, accX);
+    sendData(0x25, accY);
+    sendData(0x26, accZ);
   }
   return enabled;
 }
@@ -303,19 +312,17 @@ bool FrSkyTelemetry::sendTasData()
 bool FrSkyTelemetry::sendTemsData()
 {
   bool enabled = enabledSensors & SENSOR_TEMS;
-  if(enabled == true)
-  {
-    sendData(0x02, t1);  
+  if(enabled == true) {
+    sendData(0x02, t1);
     sendData(0x05, t2);
   }
   return enabled;
 }
-   
+
 bool FrSkyTelemetry::sendRpmsData()
 {
   bool enabled = enabledSensors & SENSOR_RPMS;
-  if(enabled == true)
-  {
+  if(enabled == true) {
     sendData(0x03, rpm);
   }
   return enabled;
@@ -350,22 +357,17 @@ void FrSkyTelemetry::sendFrame3()
 
 void FrSkyTelemetry::send()
 {
-  uint32_t currentTime = millis(); 
-  if(currentTime > frame3Time) // Sent every 5s (5000ms)
-  {
+  uint32_t currentTime = millis();
+  if(currentTime > frame3Time) { // Sent every 5s (5000ms)
     frame3Time = currentTime + 5000;
     frame2Time = currentTime + 200; // Postpone frame 2 to next cycle
     frame1Time = currentTime + 200; // Postpone frame 1 to next cycle
     sendFrame3();
-  }
-  else if(currentTime > frame2Time) // Sent every 1s (1000ms)
-  {
+  } else if(currentTime > frame2Time) { // Sent every 1s (1000ms)
     frame2Time = currentTime + 2000;
     frame1Time = currentTime + 200; // Postpone frame 1 to next cycle
     sendFrame2();
-  } 
-  else if(currentTime > frame1Time) // Sent every 200ms
-  {
+  } else if(currentTime > frame1Time) { // Sent every 200ms
     frame1Time = currentTime + 200;
     sendFrame1();
   }

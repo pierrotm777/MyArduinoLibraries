@@ -3,12 +3,19 @@
   (c) Pawelsky 20170831
   Not for commercial use
 */
+/*PAH
+  NOTE that Teensy 4.0 and Teensy 4.1 use the same processor
+  so the #ifdef tests can't use the processor type to distinguish
+  between them in the conditional compilation.
+  The Arduino IDE has been set up to define the
+  identifiers ARDUINO_TEENSY40 and ARDUINO_TEENSY41 which are used here
+*/
 
 #ifndef _FRSKY_TELEMETRY_H_
 #define _FRSKY_TELEMETRY_H_
 
 #include "Arduino.h"
-#if !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
 #include "SoftwareSerial.h"
 #endif
 
@@ -26,13 +33,19 @@ class FrSkyTelemetry
 {
   public:
     // Constructor - used to create the telemetry object
-    FrSkyTelemetry(); 
+    FrSkyTelemetry();
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__)
     // Serial port identifiers for Teensy 3.0/3.1/3.2/LC boards
     enum SerialId { SERIAL_USB = 0, SERIAL_1 = 1, SERIAL_2 = 2, SERIAL_3 = 3 };
-#elif defined(__MK66FX1M0__) || defined(__MK64FX512__) 
+#elif defined(__MK66FX1M0__) || defined(__MK64FX512__)
     // Serial port identifiers for Teensy 3.5/3.6 boards
     enum SerialId { SERIAL_USB = 0, SERIAL_1 = 1, SERIAL_2 = 2, SERIAL_3 = 3, SERIAL_4 = 4 , SERIAL_5 = 5 , SERIAL_6 = 6 };
+#elif defined(ARDUINO_TEENSY40)
+    // 7 Serial port identifiers for Teensy 4.0 boards
+    enum SerialId { SERIAL_USB = 0, SERIAL_1 = 1, SERIAL_2 = 2, SERIAL_3 = 3, SERIAL_4 = 4 , SERIAL_5 = 5 , SERIAL_6 = 6, SERIAL_7 = 7 };
+#elif defined(ARDUINO_TEENSY41)
+    // 8 Serial port identifiers for Teensy 4.1 boards
+    enum SerialId { SERIAL_USB = 0, SERIAL_1 = 1, SERIAL_2 = 2, SERIAL_3 = 3, SERIAL_4 = 4 , SERIAL_5 = 5 , SERIAL_6 = 6, SERIAL_7 = 7, SERIAL_8 = 8 };
 #else
     // Serial port identifiers for 328P/168 based boards
     enum SerialId { SOFT_SERIAL_PIN_2 = 2, SOFT_SERIAL_PIN_3 = 3, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_6 = 6, SOFT_SERIAL_PIN_7 = 7,
@@ -68,8 +81,12 @@ class FrSkyTelemetry
     uint32_t frame1Time;
     uint32_t frame2Time;
     uint32_t frame3Time;
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40)
     Stream* port;
-#if !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
+#else
+    HardwareSerial *port;
+#endif
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
     SoftwareSerial* softSerial;
 #endif
     // FAS sensor
