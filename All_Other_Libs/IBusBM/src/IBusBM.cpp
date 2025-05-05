@@ -20,6 +20,7 @@
  * Updated 4 April 2019 to support ESP32
  * updated 13 jun 2019 to support STM32 (pauluzs)
  * Updated 21 Jul 2020 to support MBED (David Peverley) 
+ * Updated 03 May 2025 to support Teensy 4.x (Pete El Supremo)
  */
 
 #include <Arduino.h>
@@ -38,6 +39,12 @@ SIGNAL(TIMER0_COMPA_vect) {
 }
 #elif defined _VARIANT_ARDUINO_STM32_
 void  onTimer(stimer_t *htim) {
+  if (IBusBMfirst) IBusBMfirst->loop();  // gets new servo values if available and process any sensor data
+}
+//Pete (El_Supremo)
+#elif defined(__IMXRT1062__)
+IntervalTimer myTimer;
+void  onTimer() {
   if (IBusBMfirst) IBusBMfirst->loop();  // gets new servo values if available and process any sensor data
 }
 #else
@@ -142,6 +149,10 @@ void IBusBM::begin(HardwareSerial &serial, int8_t timerid, int8_t rxPin, int8_t 
         NVIC_EnableIRQ(TIMER4_IRQn);
 
         NRF_TIMER4->TASKS_START = 1;      // Start TIMER2
+
+// Pete (El_Supremo) - Add Timer3 for Teensy 4.x
+      #elif defined(__IMXRT1062__)
+                myTimer.begin(onTimer, 1000);	// 1ms timer
       #else
         // It should not be too difficult to support additional architectures as most have timer functions, but I only tested AVR and ESP32
         #warning "Timing only supportted for AVR, ESP32 and STM32 architectures. Use timerid IBUSBM_NOTIMER"
@@ -151,7 +162,7 @@ void IBusBM::begin(HardwareSerial &serial, int8_t timerid, int8_t rxPin, int8_t 
   IBusBMfirst = this; 
 }
 
-// called from timer interrupt or mannually by user (if IBUSBM_NOTIMER set in begin())
+// called from timer interrupt or manually by user (if IBUSBM_NOTIMER set in begin())
 void IBusBM::loop(void) {
 
   // if we have multiple instances of IBusBM, we (recursively) call the other instances loop() function
