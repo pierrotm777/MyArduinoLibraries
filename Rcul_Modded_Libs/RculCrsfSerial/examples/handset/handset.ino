@@ -25,7 +25,7 @@
 // Pass any HardwareSerial port and supported baud rate (115200, 400000, 921600, 1.87M, 2.25M, 3.75M, 5.25M)
 // "Arduino" users (atmega328) can only use 115200
 static UART CrsfSerialStream(DPIN_CRSF_TX, DPIN_CRSF_RX);
-static CrsfSerial crsf(CrsfSerialStream, 921600);
+static RculCrsfSerial crsf(CrsfSerialStream, 921600);
 
 /***
  * This callback is called whenever linkstats is received from the TX module

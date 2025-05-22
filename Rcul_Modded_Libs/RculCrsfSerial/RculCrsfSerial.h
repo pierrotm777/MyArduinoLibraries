@@ -41,6 +41,7 @@ public:
     void (*onPacketChannels)();
     void (*onPacketLinkStatistics)(crsfLinkStatistics_t *ls);
     void (*onPacketGps)(crsf_sensor_gps_t *gpsSensor);
+	
     /* Rcul support */
     virtual uint8_t       RculIsSynchro(uint8_t ClientIdx = RCUL_DEFAULT_CLIENT_IDX);
     virtual uint16_t      RculGetWidth_us(uint8_t Ch);
@@ -73,7 +74,6 @@ private:
     void packetChannelsPacked(const crsf_header_t *p);
     void packetLinkStatistics(const crsf_header_t *p);
     void packetGps(const crsf_header_t *p);
-	
 	/* Rcul support */
-	uint8_t               Synchro;
+	uint8_t               _Synchro;
 };

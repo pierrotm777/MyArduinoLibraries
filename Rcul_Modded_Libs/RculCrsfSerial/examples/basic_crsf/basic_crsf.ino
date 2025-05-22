@@ -4,7 +4,7 @@
 // "Arduino" users (atmega328) can not use CRSF_BAUDRATE, as the atmega does not support it
 // and should pass 250000, but then also must flash the receiver with RCVR_UART_BAUD=250000
 // Also note the atmega only has one Serial, so logging to Serial must be removed
-CrsfSerial crsf(Serial1, CRSF_BAUDRATE);
+RculCrsfSerial crsf(Serial1, CRSF_BAUDRATE);
 
 /***
  * This callback is called whenever new channel values are available.
@@ -28,6 +28,6 @@ void setup()
 
 void loop()
 {
-    // Must call CrsfSerial.loop() in loop() to process data
+    // Must call RculCrsfSerial.loop() in loop() to process data
     crsf.loop();
 }

@@ -31,10 +31,8 @@
 // }
 
 /* Begin of Rcul support */
-static volatile uint8_t  _Synchro;
 static volatile uint8_t  _ChIdx;
 static volatile uint8_t  _ChIdxMax;
-static volatile uint16_t _ChWidthUs[CRSF_NUM_CHANNELS];
 /* Begin of Rcul support */
 
 RculCrsfSerial::RculCrsfSerial(HardwareSerial &port, uint32_t baud) :
@@ -49,6 +47,7 @@ void RculCrsfSerial::begin(uint32_t baud)
         _port.begin(baud);
     else
         _port.begin(_baud);
+	_Synchro  = 0;
 }
 
 // Call from main loop to update
@@ -104,6 +103,7 @@ void RculCrsfSerial::handleByteReceived()
 
             else if (_rxBufPos >= (len + 2))
             {
+				_Synchro  = 0xFF; /* Synchro RCUL detected */
                 uint8_t inCrc = _rxBuf[2 + len - 1];
                 uint8_t crc = _crc.calc(&_rxBuf[2], len - 1);
                 if (crc == inCrc)
@@ -111,7 +111,6 @@ void RculCrsfSerial::handleByteReceived()
                     processPacketIn(len);
                     shiftRxBuffer(len + 2);
                     reprocess = true;
-					_Synchro  = 0xFF; /* Synchro RCUL detected */
                 }
                 else
                 {
@@ -195,7 +194,7 @@ void RculCrsfSerial::packetChannelsPacked(const crsf_header_t *p)
             scratch |= (*buf++) << bitsInScratch;
             bitsInScratch += 8;
         }
-
+        
         _channels[ch] = CRSF_to_US(scratch & inputMask);
         scratch >>= CRSF_BITS_PER_CHANNEL;
         bitsInScratch -= CRSF_BITS_PER_CHANNEL;
@@ -352,10 +351,6 @@ void RculCrsfSerial::setPassthroughMode(bool val, uint32_t passthroughBaud)
     begin(_passthroughBaud);
 }
 
-// uint8_t RculPPMRead::detectedChannelNb(void)
-// { 
-  // return(_ChIdxMax); /* No need to mask/unmask interrupt (8 bits) */
-// }
 uint8_t RculCrsfSerial::isSynchro(uint8_t ClientIdx /*= 7*/)
 {
   uint8_t Ret;
@@ -375,8 +370,8 @@ uint16_t RculCrsfSerial::width_us(uint8_t Ch)
     /* Read pulse width without disabling interrupts */
     do
     {
-      Width_us = _ChWidthUs[Ch];
-    }while(Width_us != _ChWidthUs[Ch]);
+      Width_us = _channels[Ch];
+    }while(Width_us != _channels[Ch]);
   }
   return(Width_us);
 }
