@@ -137,7 +137,6 @@ void loop()
 
 }
 
-
 void displayButtonValues(uint16_t ButtonOutputs)
 {
   if(BUTTON_NB >= 10)
@@ -161,4 +160,3 @@ void displayButtonValues(uint16_t ButtonOutputs)
   }
   Serial.println();
 }
-
