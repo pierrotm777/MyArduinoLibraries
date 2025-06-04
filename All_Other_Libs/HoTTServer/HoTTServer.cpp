@@ -1,6 +1,7 @@
 #include "HoTTServer.h"
 
-SoftwareSerial swSerial(10,11);
+//SoftwareSerial swSerial(10,11);
+#define swSerial Serial3 //for test with Teensy 4.0
 
 HoTTServer::HoTTServer() {
 	setWarning(HOTT_ALARM_NONE);

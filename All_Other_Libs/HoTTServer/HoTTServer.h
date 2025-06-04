@@ -28,7 +28,7 @@
 #define HoTTServer_h HoTTServer_h
 
 #include "Arduino.h"
-#include "SoftwareSerial.h"
+//#include "SoftwareSerial.h"
 
 // Protocoll definitions
 

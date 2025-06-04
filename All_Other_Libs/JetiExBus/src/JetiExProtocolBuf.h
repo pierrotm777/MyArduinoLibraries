@@ -37,8 +37,8 @@
  #include <WProgram.h>
 #endif
 
-#ifndef ESP32
-  #include <new.h>
+#if !defined(ESP32) and !defined(__SAMD21__)
+  //#include <new.h>
 #endif 
 
 // Definition of Jeti sensor (aka "Equipment")
