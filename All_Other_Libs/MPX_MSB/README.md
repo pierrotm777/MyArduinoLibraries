@@ -129,8 +129,8 @@ Combine with a barometric sensor (e.g. **BMP280**) to generate real altitude and
 
 ## 📖 Background
 
-The **MSRC Multiplex telemetry code** by *laneboysrc* provides a full, feature-rich Multiplex telemetry implementation.  
-This wrapper, `MpxSimple`, was created to simplify usage in typical RC/Arduino projects:
+The **MSRC Multiplex telemetry code** by *laneboysrc* provides a full, feature-rich Multiplex **M-LINK** telemetry implementation.  
+This wrapper, `Mpx_Msb`, was created to simplify usage in typical RC/Arduino projects:
 - Direct setters (`sendVbat`, `sendTmp1`, `sendTmp2`).  
 - Easy digital alarms (`addAlarmDigital`).  
 - Retains full control through `raw()`.
