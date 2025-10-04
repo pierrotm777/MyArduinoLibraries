@@ -1,131 +1,135 @@
 
+// MPX_MSB.h - v2.0.0 (simplified, independent)
+// - 3-byte MSB frame format (no 0x7E preamble)
+// - STRICT poll→reply (no periodic broadcast)
+// - Only the essentials you asked: Vbat, Temp1, Temp2, Digital alarms
 #pragma once
 #include <Arduino.h>
-#include <mpx_msb.h>  // base library with MPX::MpxMsb, addAlarmChannel, addGenericChannel, ...
 
-/*
-  mpx_msb.h  —  Simplified wrapper & helpers around MPX::MpxMsb
+// ---- MSB "class" IDs ----
+#define MPX_VOLT         1
+#define MPX_CURRENT      2
+#define MPX_VSPEED       3
+#define MPX_SPEED        4
+#define MPX_RPM          5
+#define MPX_TMP          6
+#define MPX_DIR          7
+#define MPX_HEIGHT       8
+#define MPX_LEVEL        9
+#define MPX_LQ          10
+#define MPX_CONSUMPTION 11
+#define MPX_LIQUID      12
+#define MPX_DIST        13
 
-  This header provides a light facade "MPX::MpxSimple" that:
-    - exposes direct setters:  sendVbat(volts), sendTmp1(C), sendTmp2(C)
-    - keeps all advanced features available (addGenericChannel, addAlarmChannel, setTxOnly, ...)
-    - adds an easy digital alarm helper: addAlarmDigital(pin, addr, classId, ...)
-
-  Notes:
-    * No NTC/ADC here. You push your values directly with sendVbat/sendTmp1/2.
-    * For advanced mappings (GPS, vario, etc.), use raw() to access MPX::MpxMsb.
-*/
+#ifndef MPX_ADC_MAX
+#define MPX_ADC_MAX 1023
+#endif
 
 namespace MPX {
 
-/**
- * @brief Wrapper simplifié au-dessus de MPX::MpxMsb
- *
- * Exemple minimal:
- *   MpxSimple mpx;
- *   mpx.begin(Serial3, 38400);
- *   mpx.sendVbat(15.0f);
- *   mpx.sendTmp1(25.0f);
- *   mpx.sendTmp2(30.0f);
- *   mpx.addAlarmDigital(2, 9, MPX_LIQUID);  // D2 en INPUT_PULLUP, LOW => 1 + bit alarme
- *   ...
- *   mpx.poll();  // dans loop()
- */
-class MpxSimple {
+typedef float (*ValueProvider)();
+typedef bool  (*AlarmProvider)();
+
+class Mpx_Msb {
 public:
-  /**
-   * @brief Initialise la télémétrie Multiplex sur un port série matériel.
-   * @param ser   Port série câblé à l’entrée B/D du RX (ex: Serial3 sur Teensy 4.0)
-   * @param baud  Baudrate (par défaut 38400)
-   *
-   * Active par défaut les adresses: Vbat=3, Temp1=6, Temp2=7 (modifiables via map*Addr).
-   * Active l'echo masking et fixe l'idle à ~500us.
-   */
   void begin(HardwareSerial &ser, uint32_t baud = 38400);
 
-  /** @brief Change l’adresse MSB pour Vbat (défaut 3). */
-  void mapVbatAddr(uint8_t addr);
+  // Map addresses (0..15). Default: V=3, T1=6, T2=7
+  void mapVbatAddr(uint8_t addr)  { _addrV = (addr & 0x0F); }
+  void mapTemp1Addr(uint8_t addr) { _addrT1 = (addr & 0x0F); }
+  void mapTemp2Addr(uint8_t addr) { _addrT2 = (addr & 0x0F); }
 
-  /** @brief Change l’adresse MSB pour Temp1 (défaut 6). */
-  void mapTemp1Addr(uint8_t addr);
+  // Direct setters (you feed real-world values already scaled in volts / °C)
+  void sendVbat(float volts) { _vbat = volts; }
+  void sendTmp1(float t1)    { _t1   = t1;    }
+  void sendTmp2(float t2)    { _t2   = t2;    }
 
-  /** @brief Change l’adresse MSB pour Temp2 (défaut 7). */
-  void mapTemp2Addr(uint8_t addr);
-
-  /** @brief Met à jour la tension batterie (Volts). */
-  void sendVbat(float volts);
-
-  /** @brief Met à jour la température 1 (°C). */
-  void sendTmp1(float t1);
-
-  /** @brief Met à jour la température 2 (°C). */
-  void sendTmp2(float t2);
-
-  /**
-   * @brief Ajoute une alarme digitale simple (0/1) avec bit d’alarme.
-   *
-   * @param pin        Numéro de pin Arduino à lire.
-   * @param addr       Adresse MSB (0..15) où publier.
-   * @param classId    Classe MSB à utiliser (ex: MPX_LIQUID pour affichage 0/1 clair).
-   * @param activeLow  true: LOW = alarme active ; false: HIGH = alarme active. (défaut true)
-   * @param usePullup  true: configure la pin en INPUT_PULLUP ; false: INPUT. (défaut true)
-   * @param onValue    Valeur publiée quand l’alarme est active (défaut 1.0).
-   * @param offValue   Valeur publiée quand l’alarme est inactive (défaut 0.0).
-   * @param scale      Facteur d’échelle MSB (1.0 => unités entières ; 10.0 => dixièmes). (défaut 1.0)
-   *
-   * La lib gère en interne le digitalRead() et publie la valeur + positionne le bit alarme.
-   * Pas besoin d’écrire des fonctions A0(), V0() dans votre sketch.
-   */
-  void addAlarmDigital(uint8_t pin, uint8_t addr, uint8_t classId,
+  // Digital alarms (0/1), optional pullup & activeLow, optional custom on/off values and scale
+  void addAlarmDigital(uint8_t pin, uint8_t addr, uint8_t classId = MPX_LIQUID,
                        bool activeLow = true, bool usePullup = true,
                        float onValue = 1.0f, float offValue = 0.0f,
-                       float scale = 1.0f);
+                       float scale   = 1.0f);
 
-  /** @brief À appeler souvent dans loop() pour répondre aux polls MSB. */
-  void poll();
+  // Providers (optional) if you prefer callbacks rather than sendVbat()/sendTmpX()
+  void setVoltageProvider(ValueProvider p) { _provV = p; }
+  void setTemp1Provider(ValueProvider p)   { _provT1 = p; }
+  void setTemp2Provider(ValueProvider p)   { _provT2 = p; }
 
-  // ---- Options avancées (pass-through) ----
-  void setIdleMicros(uint32_t us);
-  void setEchoMasking(bool enable);
-  void setTxOnly(bool enable, uint16_t periodMs = 20);
+  // Tuning
+  void setIdleMicros(uint32_t us)   { _idleUs = us; }      // delay between RX poll and our reply
+  void setEchoMasking(bool enable)  { _echoMask = enable; }
+  
+ // Mapper les adresses utilisées par GPS / VARIO (désactivées par défaut = 0xFF)
+ void mapGpsAddrs(uint8_t altAddr, uint8_t spdAddr, uint8_t cogAddr) {
+   _addrAlt = (altAddr & 0x0F); _addrSpd = (spdAddr & 0x0F); _addrCog = (cogAddr & 0x0F);
+ }
+ void mapVarioAddrs(uint8_t altAddr, uint8_t vspdAddr) {
+   _addrAlt = (altAddr & 0x0F); _addrVSpd = (vspdAddr & 0x0F);
+ }
 
-  /** @brief Accès direct à l’objet sous-jacent pour usages avancés. */
-  MPX::MpxMsb& raw();
+// Dépôt des valeurs GPS & VARIO (cachées, envoyées à la demande via poll)
+void Gps(double lat_deg, double lon_deg,
+         float alt_m,
+         float speed_m_s,
+         float course_deg,
+         uint8_t yy, uint8_t mm, uint8_t dd,
+         uint8_t hh, uint8_t mi, uint8_t ss);
 
-  // -------- Fournisseurs internes (ne pas appeler directement) --------
-  static float _provVbatThunk();
-  static float _provT1Thunk();
-  static float _provT2Thunk();
+void Vario(float alt_m, float vspd_m_s);
+  
+
+  // Main service
+  void poll(); // call often in loop()
 
 private:
-  MPX::MpxMsb _msb;
-  uint8_t _addrV = 3, _addrT1 = 6, _addrT2 = 7;
+  // 3-byte MSB frame: [ (addr<<4) | (class&0x0F) , LSB(value), MSB(value) ]
+  void send3(uint8_t addr, uint8_t klass, uint16_t enc);
+  static uint16_t encodeDeci(float deci, bool alarmBit=false); // 15-bit signed (0.1 units), LSB=alarm
 
-  static float _vbat, _t1, _t2;
+  // Resolve current values (provider or cached direct)
+  float vbat() const { return _provV ? _provV() : _vbat; }
+  float t1()   const { return _provT1? _provT1(): _t1;   }
+  float t2()   const { return _provT2? _provT2(): _t2;   }
 
-  // --- Gestion interne des alarmes digitales ---
-  struct DAConf {
-    uint8_t pin; bool activeLow;
-    float onValue, offValue;
-    uint8_t addr, classId;
-    float scale;
-    bool inUse;
+  struct DAlarm {
+    uint8_t pin, addr, classId;
+    bool inUse, activeLow;
+    float onValue, offValue, scale;
   };
-  static constexpr uint8_t MAX_DA = 8;
-  static DAConf _da[MAX_DA];
+  static const uint8_t MAX_DA = 8;
+  DAlarm _da[MAX_DA];
+  uint8_t _daCount = 0;
 
-  // Pour relier des callbacks C à nos entrées, on déclare 8 paires de thunks.
-  static bool  _alarmThunk0(); static float _valueThunk0();
-  static bool  _alarmThunk1(); static float _valueThunk1();
-  static bool  _alarmThunk2(); static float _valueThunk2();
-  static bool  _alarmThunk3(); static float _valueThunk3();
-  static bool  _alarmThunk4(); static float _valueThunk4();
-  static bool  _alarmThunk5(); static float _valueThunk5();
-  static bool  _alarmThunk6(); static float _valueThunk6();
-  static bool  _alarmThunk7(); static float _valueThunk7();
+  // Helpers
+  void drainEcho(uint8_t nbytes);
+  void replyIfAsked(uint8_t polledAddr);
+  
+  // --- AJOUTS (private) ---
+  // Adresses (0xFF = désactivé)
+  uint8_t _addrAlt = 0xFF;   // classe MPX_HEIGHT (m, échelle 1)
+  uint8_t _addrVSpd = 0xFF;  // classe MPX_VSPEED (0.1 m/s)
+  uint8_t _addrSpd = 0xFF;   // classe MPX_SPEED  (0.1 km/h)
+  uint8_t _addrCog = 0xFF;   // classe MPX_DIR    (0.1 °)
 
-  static bool  _alarmThunkN(uint8_t i);
-  static float _valueThunkN(uint8_t i);
+  // Caches valeurs
+  float _gps_alt_m = 0.0f;
+  float _gps_spd_kmh = 0.0f;   // converti depuis m/s
+  float _gps_cog_deg = 0.0f;   // 0..359.9
+  float _vario_alt_m = 0.0f;
+  float _vario_vspd_ms = 0.0f;
+
+  // Date/heure GPS (stockées mais non transmises; utilitaires éventuels)
+  uint8_t _gps_y=0,_gps_m=0,_gps_d=0,_gps_h=0,_gps_min=0,_gps_s=0;
+
+private:
+  HardwareSerial* _ser = nullptr;
+  uint8_t _addrV=3, _addrT1=6, _addrT2=7;
+  float _vbat=0.0f, _t1=0.0f, _t2=0.0f;
+  uint32_t _idleUs = 300;
+  bool _echoMask = false;
+
+  // Optional providers
+  ValueProvider _provV=nullptr, _provT1=nullptr, _provT2=nullptr;
 };
 
 } // namespace MPX

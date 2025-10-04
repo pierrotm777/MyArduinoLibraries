@@ -1,92 +1,143 @@
 
-#include "mpx_msb.h"
-using namespace MPX;
+// MPX_MSB.cpp - v2.0.0 (simplified, independent)
+#include "MPX_MSB.h"
+#include <math.h>
+namespace MPX {
 
-float MpxSimple::_vbat = 0.0f;
-float MpxSimple::_t1   = 0.0f;
-float MpxSimple::_t2   = 0.0f;
-MpxSimple::DAConf MpxSimple::_da[MpxSimple::MAX_DA] = {};
-
-// ---------- Built-ins ----------
-void MpxSimple::begin(HardwareSerial &ser, uint32_t baud){
-  _msb.begin(ser, baud);
-  _msb.setEchoMasking(true);
-  _msb.setIdleMicros(500);
-  _msb.setAddresses(_addrV, _addrT1, _addrT2);
-  _msb.setCurrentAddress(0xFF);
-  _msb.setVoltageProvider(&_provVbatThunk);
-  _msb.setTemp1Provider(&_provT1Thunk);
-  _msb.setTemp2Provider(&_provT2Thunk);
+void Mpx_Msb::begin(HardwareSerial &ser, uint32_t baud){
+  _ser = &ser; _ser->begin(baud);
+  _daCount = 0;
 }
-void MpxSimple::mapVbatAddr(uint8_t addr){ _addrV=addr; _msb.setAddresses(_addrV,_addrT1,_addrT2); }
-void MpxSimple::mapTemp1Addr(uint8_t addr){ _addrT1=addr; _msb.setAddresses(_addrV,_addrT1,_addrT2); }
-void MpxSimple::mapTemp2Addr(uint8_t addr){ _addrT2=addr; _msb.setAddresses(_addrV,_addrT1,_addrT2); }
-void MpxSimple::sendVbat(float volts){ _vbat=volts; }
-void MpxSimple::sendTmp1(float t1){ _t1=t1; }
-void MpxSimple::sendTmp2(float t2){ _t2=t2; }
-void MpxSimple::poll(){ _msb.pollOnce(); }
-void MpxSimple::setIdleMicros(uint32_t us){ _msb.setIdleMicros(us); }
-void MpxSimple::setEchoMasking(bool enable){ _msb.setEchoMasking(enable); }
-void MpxSimple::setTxOnly(bool enable, uint16_t periodMs){ _msb.setTxOnly(enable, periodMs); }
-MPX::MpxMsb& MpxSimple::raw(){ return _msb; }
-float MpxSimple::_provVbatThunk(){ return _vbat; }
-float MpxSimple::_provT1Thunk(){ return _t1; }
-float MpxSimple::_provT2Thunk(){ return _t2; }
 
-// ---------- Digital alarms ----------
-void MpxSimple::addAlarmDigital(uint8_t pin, uint8_t addr, uint8_t classId,
-                                bool activeLow, bool usePullup,
-                                float onValue, float offValue, float scale){
-  // find a free slot
-  int idx = -1;
-  for (uint8_t i=0;i<MAX_DA;i++){ if(!_da[i].inUse){ idx=i; break; } }
-  if (idx < 0) return; // full
-
+void Mpx_Msb::addAlarmDigital(uint8_t pin, uint8_t addr, uint8_t classId,
+                              bool activeLow, bool usePullup,
+                              float onValue, float offValue, float scale){
+  if (_daCount >= MAX_DA) return;
   if (usePullup) pinMode(pin, INPUT_PULLUP); else pinMode(pin, INPUT);
+  _da[_daCount++] = DAlarm{pin, (uint8_t)(addr&0x0F), classId, true, activeLow, onValue, offValue, scale};
+}
 
-  _da[idx] = DAConf{pin, activeLow, onValue, offValue, addr, classId, scale, true};
+uint16_t Mpx_Msb::encodeDeci(float deci, bool alarm){
+  int v = (int)lroundf(deci);           // value in tenths
+  if (v < -16384) v = -16384;
+  if (v >  16383) v =  16383;
+  uint16_t u = ((uint16_t)(v << 1)) & 0xFFFE;
+  if (alarm) u |= 1;
+  return u;
+}
 
-  // bind thunks
-  switch(idx){
-    case 0: _msb.addAlarmChannel(addr, classId, &_alarmThunk0, &_valueThunk0, 0,0, scale); break;
-    case 1: _msb.addAlarmChannel(addr, classId, &_alarmThunk1, &_valueThunk1, 0,0, scale); break;
-    case 2: _msb.addAlarmChannel(addr, classId, &_alarmThunk2, &_valueThunk2, 0,0, scale); break;
-    case 3: _msb.addAlarmChannel(addr, classId, &_alarmThunk3, &_valueThunk3, 0,0, scale); break;
-    case 4: _msb.addAlarmChannel(addr, classId, &_alarmThunk4, &_valueThunk4, 0,0, scale); break;
-    case 5: _msb.addAlarmChannel(addr, classId, &_alarmThunk5, &_valueThunk5, 0,0, scale); break;
-    case 6: _msb.addAlarmChannel(addr, classId, &_alarmThunk6, &_valueThunk6, 0,0, scale); break;
-    case 7: _msb.addAlarmChannel(addr, classId, &_alarmThunk7, &_valueThunk7, 0,0, scale); break;
+void Mpx_Msb::drainEcho(uint8_t n){
+  if(!_ser || !_echoMask) return;
+  uint32_t s = micros();
+  uint16_t d = 0;
+  while (d < n && (micros()-s) < 1000){
+    if (_ser->read() >= 0) d++;
   }
 }
 
-bool  MpxSimple::_alarmThunkN(uint8_t i){
-  const DAConf &c = _da[i];
-  if (!c.inUse) return false;
-  int s = digitalRead(c.pin);
-  return c.activeLow ? (s==LOW) : (s==HIGH);
-}
-float MpxSimple::_valueThunkN(uint8_t i){
-  const DAConf &c = _da[i];
-  if (!c.inUse) return 0.0f;
-  int s = digitalRead(c.pin);
-  bool active = c.activeLow ? (s==LOW) : (s==HIGH);
-  return active ? c.onValue : c.offValue;
+void Mpx_Msb::send3(uint8_t addr, uint8_t klass, uint16_t enc){
+  if(!_ser) return;
+  uint8_t b0 = (uint8_t)((addr & 0x0F) << 4) | (klass & 0x0F);
+  uint8_t b1 = (uint8_t)(enc & 0xFF);
+  uint8_t b2 = (uint8_t)((enc >> 8) & 0xFF);
+  _ser->write(b0); _ser->write(b1); _ser->write(b2);
+  drainEcho(3);
 }
 
-// 8 thunk pairs
-bool  MpxSimple::_alarmThunk0(){ return _alarmThunkN(0); }
-float MpxSimple::_valueThunk0(){ return _valueThunkN(0); }
-bool  MpxSimple::_alarmThunk1(){ return _alarmThunkN(1); }
-float MpxSimple::_valueThunk1(){ return _valueThunkN(1); }
-bool  MpxSimple::_alarmThunk2(){ return _alarmThunkN(2); }
-float MpxSimple::_valueThunk2(){ return _valueThunkN(2); }
-bool  MpxSimple::_alarmThunk3(){ return _alarmThunkN(3); }
-float MpxSimple::_valueThunk3(){ return _valueThunkN(3); }
-bool  MpxSimple::_alarmThunk4(){ return _alarmThunkN(4); }
-float MpxSimple::_valueThunk4(){ return _valueThunkN(4); }
-bool  MpxSimple::_alarmThunk5(){ return _alarmThunkN(5); }
-float MpxSimple::_valueThunk5(){ return _valueThunkN(5); }
-bool  MpxSimple::_alarmThunk6(){ return _alarmThunkN(6); }
-float MpxSimple::_valueThunk6(){ return _valueThunkN(6); }
-bool  MpxSimple::_alarmThunk7(){ return _alarmThunkN(7); }
-float MpxSimple::_valueThunk7(){ return _valueThunkN(7); }
+void Mpx_Msb::replyIfAsked(uint8_t a){
+  // Vbat
+  if ((_addrV & 0x0F) == a){
+    float vb = vbat();
+    send3(_addrV, MPX_VOLT, encodeDeci(vb * 10.0f, false));
+    return;
+  }
+  // Temp1
+  if ((_addrT1 & 0x0F) == a){
+    float t = t1();
+    send3(_addrT1, MPX_TMP, encodeDeci(t * 10.0f, false));
+    return;
+  }
+  // Temp2
+  if ((_addrT2 & 0x0F) == a){
+    float t = t2();
+    send3(_addrT2, MPX_TMP, encodeDeci(t * 10.0f, false));
+    return;
+  }
+  
+  // --- AJOUTS: GPS/VARIO ---
+  // Altitude (partagée GPS/VARIO)
+  if ((_addrAlt != 0xFF) && ((_addrAlt & 0x0F) == a)) {
+    float alt = (_vario_alt_m != 0.0f) ? _vario_alt_m : _gps_alt_m; // préfère vario si fourni récemment
+    send3(_addrAlt, MPX_HEIGHT, encodeDeci(alt * 1.0f, false)); // échelle 1 m
+    return;
+  }
+
+  // Vitesse verticale (VARIO)
+  if ((_addrVSpd != 0xFF) && ((_addrVSpd & 0x0F) == a)) {
+    send3(_addrVSpd, MPX_VSPEED, encodeDeci(_vario_vspd_ms * 10.0f, false)); // 0.1 m/s
+    return;
+  }
+
+  // Vitesse sol (GPS)
+  if ((_addrSpd != 0xFF) && ((_addrSpd & 0x0F) == a)) {
+    send3(_addrSpd, MPX_SPEED, encodeDeci(_gps_spd_kmh * 10.0f, false)); // 0.1 km/h
+    return;
+  }
+
+  // Cap (GPS)
+  if ((_addrCog != 0xFF) && ((_addrCog & 0x0F) == a)) {
+    send3(_addrCog, MPX_DIR, encodeDeci(_gps_cog_deg * 10.0f, false)); // 0.1°
+    return;
+  }
+  
+  
+  // Digital alarms
+  for (uint8_t i=0;i<_daCount;i++){
+    const DAlarm &d = _da[i];
+    if (!d.inUse || ((d.addr & 0x0F) != a)) continue;
+    int s = digitalRead(d.pin);
+    bool active = d.activeLow ? (s==LOW) : (s==HIGH);
+    float v = active ? d.onValue : d.offValue;
+    send3(d.addr, d.classId, encodeDeci(v * d.scale, active)); // LSB=alarm
+    return;
+  }
+}
+
+void Mpx_Msb::Gps(double /*lat_deg*/, double /*lon_deg*/,
+                   float alt_m, float speed_m_s, float course_deg,
+                   uint8_t yy, uint8_t mm, uint8_t dd,
+                   uint8_t hh, uint8_t mi, uint8_t ss)
+{
+  // On stocke les paramètres utiles au MSB (lat/lon non transmis dans ce format compact)
+  _gps_alt_m   = alt_m;
+  _gps_spd_kmh = speed_m_s * 3.6f;               // MPX_SPEED = 0.1 km/h
+  // normalise le cap 0..360
+  while (course_deg < 0)   course_deg += 360.0f;
+  while (course_deg >=360) course_deg -= 360.0f;
+  _gps_cog_deg = course_deg;
+
+  // mémorise la date/heure (non envoyée, mais dispo si besoin)
+  _gps_y = yy; _gps_m = mm; _gps_d = dd;
+  _gps_h = hh; _gps_min = mi; _gps_s = ss;
+}
+
+void Mpx_Msb::Vario(float alt_m, float vspd_m_s)
+{
+  _vario_alt_m  = alt_m;
+  _vario_vspd_ms = vspd_m_s;                     // MPX_VSPEED = 0.1 m/s
+  // NB: si _addrAlt est mappée, on pourra publier cette altitude aussi via VARIO
+}
+
+
+void Mpx_Msb::poll(){
+  if (!_ser) return;
+  while (_ser->available()){
+    uint8_t poll = (uint8_t)_ser->read();
+    // Respect small idle before answering (lets the line settle)
+    elapsedMicros em = 0;
+    while ((uint32_t)em < _idleUs) { /* spin */ }
+    replyIfAsked((uint8_t)(poll & 0x0F));
+  }
+}
+
+} // namespace MPX

@@ -6,10 +6,6 @@ Mpx_Msb mpx;
 
 void setup(){
   mpx.begin(Serial3, 38400);
-  mpx.sendVbat(15.0f);
-  mpx.sendTmp1(25.0f);
-  mpx.sendTmp2(30.0f);
-
   mpx.addAlarmDigital(18,  9, MPX_LIQUID);
   mpx.addAlarmDigital(19, 10, MPX_LIQUID);
   mpx.addAlarmDigital(22, 11, MPX_LIQUID);

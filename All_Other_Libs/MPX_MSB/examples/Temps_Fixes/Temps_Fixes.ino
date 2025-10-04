@@ -6,7 +6,8 @@ Mpx_Msb mpx;
 
 void setup(){
   mpx.begin(Serial3, 38400);
-  mpx.sendVbat(12.5f);
+  mpx.sendTmp1(22.0f);
+  mpx.sendTmp2(35.0f);
 }
 
 void loop(){ mpx.poll(); }
