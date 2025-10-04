@@ -1,0 +1,21 @@
+https://chatgpt.com/c/68df9b22-1500-8326-86b0-96a99824246d
+
+Donc pour ton Teensy 4.0 :
+
+TX1 ne doit jamais être relié directement ? il passe par ton étage open-collector (transistor NPN).
+
+RX1 lit la ligne B/D. Comme c’est une ligne partagée (pull-up + autres capteurs potentiels), il vaut mieux protéger le RX du Teensy par une petite résistance série (˜1 kO).
+
+Ça limite le courant en cas de court-circuit ou de conflit.
+
+Sans la résistance, ça peut marcher, mais c’est plus risqué pour l’entrée RX si jamais la ligne est forcée ailleurs.
+
+Schéma recommandé :
+
+B/D ligne ? 1 kO série ? RX1 (pin 0 Teensy)
+
+TX1 (pin 1) ? étage open-collector ? B/D
+
+Pull-up 4,7 kO ? 3,3 V (côté bus, si le RX n’a pas déjà un pull-up interne à 5 V — on préfère mettre le nôtre en 3,3 V pour protéger le Teensy)
+
+GND commun récepteur ? Teensy
