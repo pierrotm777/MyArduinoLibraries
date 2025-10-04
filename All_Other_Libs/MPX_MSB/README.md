@@ -1,7 +1,7 @@
 # MPX_MSB Library (Simplified Wrapper)
 
 A simplified wrapper around the original **[MSRC Multiplex MSB telemetry library](https://github.com/laneboysrc/rc-telemetry)**.  
-This wrapper was designed with the help of **ChatGPT** to make it easier to use basic telemetry features such as **battery voltage, temperatures, and digital alarms**, while still keeping all advanced options from the original MSRC code.
+This wrapper was designed with the help of **ChatGPT** to make it easier to use basic telemetry features such as **battery voltage, temperatures, gps, vario and digital alarms**, while still keeping all advanced options from the original MSRC code.
 
 ---
 
@@ -15,8 +15,8 @@ This wrapper was designed with the help of **ChatGPT** to make it easier to use 
   - `addAlarmDigital(pin, addr, classId, activeLow=true, usePullup=true, onValue=1.0, offValue=0.0, scale=1.0)`
 - ✅ Retains full power of MSRC:
   - Advanced methods: `addGenericChannel()`, `addAlarmChannel()`, `setEchoMasking()`, `setTxOnly()`, etc.
-  - Direct access to the underlying `MPX::MpxMsb` object via `mpx.raw()`.
-- ✅ Clean inline documentation in the header (`mpx_msb.h`).
+  - Full compatibility with the original MSRC API (advanced functions available internally).
+- ✅ Clean inline documentation in the header (`MPX_MSB.h`).
 
 ---
 
