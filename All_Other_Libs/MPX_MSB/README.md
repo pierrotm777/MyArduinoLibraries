@@ -113,6 +113,7 @@ Combine with a barometric sensor (e.g. **BMP280**) to generate real altitude and
 - **DigitalAlarms_Mixed** → RPM=0/100, SPEED=0/2.0 km/h, LIQUID=0/1, DIST=0/1.0 km.  
 - **EchoDemo** → Demonstrates `setEchoMasking(true/false)`.  
 - **GPS_uBlox_TinyGPS** → Example integration with u-blox GPS and TinyGPSPlus.  
+- **GPS_NMEA_TinyGPS** → Example integration with NMEA GPS and TinyGPSPlus.
 - **VbatFixed_Only** → Minimal test with fixed values only.  
 - **BMP280_Vario** → Example using Adafruit BMP280 for altitude and variometer.
 
