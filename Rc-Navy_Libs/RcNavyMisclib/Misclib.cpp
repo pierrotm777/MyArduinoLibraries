@@ -177,3 +177,19 @@ uint8_t Ret=1;
   }
   return(Ret);
 }
+
+void ToUpperCaseStr(char *StringToConvert)
+{
+  for(uint16_t Idx = 0; StringToConvert[Idx]; Idx++)
+  {
+    StringToConvert[Idx] = toupper((unsigned char)StringToConvert[Idx]);
+  }
+}
+
+void ToLowerCaseStr(char *StringToConvert)
+{
+  for(uint16_t Idx = 0; StringToConvert[Idx]; Idx++)
+  {
+    StringToConvert[Idx] = tolower((unsigned char)StringToConvert[Idx]);
+  }
+}

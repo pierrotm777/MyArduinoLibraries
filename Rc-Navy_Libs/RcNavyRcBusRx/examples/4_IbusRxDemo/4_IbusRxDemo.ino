@@ -4,7 +4,7 @@
   | |__| | | /  \_|   | . \ | | / /  \ \ | |  | |  \ \ / /
   |  _  /  | |   _    | |\ \| | | |__| | | |  | |   \ ' /
   | | \ \  | \__/ |   | | \ ' | |  __  |  \ \/ /     | |
-  |_|  \_\  \____/    |_|  \__| |_|  |_|   \__/      |_| 2016-2020
+  |_|  \_\  \____/    |_|  \__| |_|  |_|   \__/      |_| 2016-2025
 
                 http://p.loussouarn.free.fr
 English:
@@ -34,6 +34,10 @@ Wiring/Cablage:
 
 */
 #include <RcBusRx.h>
+
+#if (RC_BUS_RX_IBUS_SUPPORT != 1)
+#error Please, set RC_BUS_RX_IBUS_SUPPORT to 1 in RcBusRx.h !
+#endif
 
 void setup()
 {

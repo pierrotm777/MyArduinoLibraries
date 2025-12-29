@@ -1,7 +1,7 @@
 RcBusRx library: a multiple decoder for RC serial buses
 ===============
 
-**RcBusRx** is a library designed to extract RC channels from RC serial bus frames. Actually, it supports SBUS, SRXL, SUMD, IBUS and JETI.
+**RcBusRx** is a library designed to extract RC channels from RC serial bus frames. Actually, it supports SBUS, SRXL, SRXL2, SUMD, IBUS and JETI.
 
 Tip and Tricks:
 --------------
