@@ -9,26 +9,32 @@ RculPWMRead::RculPWMRead(uint8_t Inv /*= 0*/)
   _Info.Inv = Inv;
 }
 
-int8_t RculPWMRead::attach(uint8_t Pin, uint16_t PulseMin_us/*=600*/, uint16_t PulseMax_us/*=2400*/)
+int8_t RculPWMRead::attach(uint8_t Pin,
+                           uint16_t PulseMin_us,
+                           uint16_t PulseMax_us)
 {
   int8_t Ret = -1;
 
-
-  if(Pin < 16)
+  int irq = digitalPinToInterrupt(Pin);
+  if (irq >= 0)
   {
     _Pin     = Pin;
     _Min_us  = PulseMin_us;
     _Max_us  = PulseMax_us;
     _Info.VirtualPortIdx = 0;
-    prev  = last;
+
+    prev = last;
     last = this;
-    pinMode(_Pin, INPUT);
-    digitalWrite(_Pin, HIGH); /* Eanble Pull-up */
-    attachInterrupt(digitalPinToInterrupt(_Pin), RculPWMRead::RculPWMReadInterrupt0ISR, CHANGE);
+
+    pinMode(_Pin, INPUT_PULLUP);
+    attachInterrupt(irq,
+                    RculPWMRead::RculPWMReadInterrupt0ISR,
+                    CHANGE);
+
     Ret = 1;
   }
 
-  return(Ret);
+  return Ret;
 }
 
 // void RculPWMRead::detach(void)

@@ -1,6 +1,6 @@
 PwmRead library
 ======================
-/*SoftRcPulseIn Fork for RP2040*/
+/*SoftRcPulseIn Fork for Teensy and RP2040*/
 **PwmRead** is an asynchronous library designed to read RC pulse signals. It is a non-blocking version of arduino **pulseIn()** function.
 
 Some examples of use cases:

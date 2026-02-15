@@ -1,0 +1,40 @@
+#######################################
+# Syntax Coloring Map For MiniCli
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+MiniCli	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+tick	KEYWORD2
+handleLine	KEYWORD2
+
+setPreDispatch	KEYWORD2
+setGlobals	KEYWORD2
+setObjects	KEYWORD2
+
+#######################################
+# Structures / Types (KEYWORD1)
+#######################################
+GlobalCmd	KEYWORD1
+ObjectSpec	KEYWORD1
+Field	KEYWORD1
+
+#######################################
+# Callbacks / Typedefs (KEYWORD2)
+#######################################
+PreDispatchFn	KEYWORD2
+GlobalFn	KEYWORD2
+QueryFn	KEYWORD2
+SetFn	KEYWORD2
+PostApplyFn	KEYWORD2
+
+#######################################
+# Constants / Literals (LITERAL1)
+#######################################
+BUF_SZ	LITERAL1

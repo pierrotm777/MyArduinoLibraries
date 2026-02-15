@@ -9,8 +9,7 @@
 void Button::begin()
 {
     pinMode(m_pin, m_puEnable ? INPUT_PULLUP : INPUT);
-    m_state = digitalRead(m_pin);
-    if (m_invert) m_state = !m_state;
+    m_state = static_cast<bool>(digitalRead(m_pin)) ^ m_invert;
     m_time = millis();
     m_lastState = m_state;
     m_changed = false;
@@ -22,8 +21,7 @@ void Button::begin()
 bool Button::read()
 {
     m_time = millis();
-    bool pinVal = digitalRead(m_pin);
-    if (m_invert) pinVal = !pinVal;
+    bool pinVal = static_cast<bool>(digitalRead(m_pin)) ^ m_invert;
 
     switch (m_fsm) {
         case STABLE:
@@ -31,9 +29,7 @@ bool Button::read()
                 m_dbStart = m_time;
                 m_fsm = DEBOUNCE;
             }
-            else {                      // nothing to see here
-                m_changed = false;
-            }
+            m_changed = false;
             break;
 
         case DEBOUNCE:
