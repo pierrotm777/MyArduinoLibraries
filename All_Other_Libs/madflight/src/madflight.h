@@ -1,7 +1,7 @@
 /*==========================================================================================
 MIT License
 
-Copyright (c) 2023-2025 https://madflight.com
+Copyright (c) 2023-2026 https://madflight.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -35,50 +35,8 @@ extern const char madflight_config[];
   const char madflight_board[] = "";
 #endif
 
-#ifndef ALT_USE
-  #define ALT_USE ALT_USE_KALMAN3
-#endif
-
-#include <Arduino.h> //keep PlatformIO happy
-#include "madflight_version.h"
-
-// bus abstraction
-#include "hal/MF_Serial.h"
-#include "hal/MF_I2C.h"
-
-// include all "_cpp.h" modules which have compile time config options
-#define MF_ALLOW_INCLUDE_CCP_H
-#include "alt/alt_cpp.h" //Altitude estimator (TODO - convert to use gizmos)
-#include "hal/hal_cpp.h"
-#include "imu/imu_cpp.h" //for IMU_EXEC
-#undef MF_ALLOW_INCLUDE_CCP_H
-
-// include all other modules without compile time config options
-#include "ahr/ahr.h" //AHRS
-#include "cfg/cfg.h" //Config
-#include "cli/cli.h" //Command Line Interface
-#include "bar/bar.h" //Barometer sensor
-#include "bat/bat.h" //Battery sensor
-#include "bbx/bbx.h" //Blackbox SDCARD
-#include "gps/gps.h" //GPS
-#include "led/led.h" //LED
-#include "lua/lua.h" //Lua scripting
-#include "mag/mag.h" //Magnetometer sensor
-#include "ofl/ofl.h" //Optical flow sensor
-#include "out/out.h" //Outputs (motor, servo)
-#include "pid/pid.h" //PIDController control
-#include "rcl/rcl.h" //RC radio link
-#include "rdr/rdr.h" //Radar, lidar, ultrasonic sensors
-#include "tbx/tbx.h" //Toolbox common tools
-#include "veh/veh.h" //Vehicle info
-
-// toolbox
-#include "tbx/RuntimeTrace.h"
-
-// prototypes
-void madflight_die(String msg);
-void madflight_warn(String msg);
-void madflight_warn_or_die(String msg, bool die);
+#include "madflight_modules.h"
+#include "mag/MagGizmoIMU.h"
 
 //===============================================================================================
 // madflight_setup()
@@ -99,27 +57,27 @@ const uint8_t Veh::flightmode_ap_ids[6] = VEH_FLIGHTMODE_AP_IDS; //mapping from 
 const char* Veh::flightmode_names[6] = VEH_FLIGHTMODE_NAMES; //define flightmode name strings for telemetry
 
 void madflight_setup() {
-  hal_usb_setup(); //setup USB CDC/MSC
-  Serial.begin(115200); //start console serial
+  // HAL - Detach USB to until SDCARD is setup
+  hal_startup();
   
-  // CFG - Configuration parameters (execute before delay to start LED)
+  // CFG - Configuration parameters (execute before delay to start LED + SDCARD)
   cfg.begin();
   #ifdef MF_CONFIG_CLEAR
     cfg.clear();
     cfg.writeToEeprom();
-    madflight_die("Config cleared. comment out '#define MF_CONFIG_CLEAR' and upload again.");
+    madflight_panic("Config cleared. comment out '#define MF_CONFIG_CLEAR' and upload again.");
   #endif
   cfg.loadFromEeprom(); //load parameters from EEPROM
   cfg.load_madflight(madflight_board, madflight_config); //load config
 
-  // LED - Setup LED (execute before delay)
+  // LED - Setup LED (execute before delay to turn it on)
   led.config.gizmo = (Cfg::led_gizmo_enum)cfg.led_gizmo;
   led.config.pin = cfg.pin_led;
   led.setup();
   led.color(0x0000ff); //turn on blue to signal startup
   led.enabled = false; //do not change state until setup compled
 
-  // BBX - Black Box (execute before delay to start USB-MSC)
+  // BBX - Black Box (execute before delay to start USB-MSC if card is inserted)
   bbx.config.gizmo = (Cfg::bbx_gizmo_enum)cfg.bbx_gizmo; //the gizmo to use
   bbx.config.spi_bus = hal_get_spi_bus(cfg.bbx_spi_bus); //SPI bus
   bbx.config.spi_cs = cfg.pin_bbx_cs; //SPI select pin
@@ -128,10 +86,16 @@ void madflight_setup() {
   bbx.config.pin_mmc_cmd = cfg.pin_mmc_cmd;
   bbx.setup();
 
-  // 6 second startup delay
+  // USB - Start USB-CDC (Serial) and USB-MSC (if sdcard is inserted)
+  hal_usb_setup();
+
+  // Serial - Start serial console
+  Serial.begin(115200);
+
+  // Delay - 6 second startup delay
   for(int i = 12; i > 0; i--) {
     Serial.printf(MADFLIGHT_VERSION " starting %d ...\n", i);
-    Serial.flush();
+        Serial.flush();
     #ifndef MF_DEBUG 
       delay(500);
     #else
@@ -160,12 +124,13 @@ void madflight_setup() {
   // HAL - Hardware abstraction layer setup: serial, spi, i2c (see hal.h)
   hal_setup();
 
+  // I2C - Show i2c devices
   cli.print_i2cScan(); //print i2c scan
 
   // LED and BBX summary
   cfg.printModule("led");
   bbx.printSummary();
-
+ 
   // RCL - Radio Control Link
   rcl.config.gizmo = (Cfg::rcl_gizmo_enum)cfg.rcl_gizmo; //the gizmo to use
   rcl.config.ser_bus_id = cfg.rcl_ser_bus; //serial bus id
@@ -177,21 +142,21 @@ void madflight_setup() {
   bar.config.gizmo = (Cfg::bar_gizmo_enum)cfg.bar_gizmo; //the gizmo to use
   bar.config.i2c_bus = hal_get_i2c_bus(cfg.bar_i2c_bus); //i2c bus
   bar.config.i2c_adr = cfg.bar_i2c_adr; //i2c address. 0=default address  
-  bar.config.sampleRate = 100; //sample rate [Hz]
+  bar.config.sample_rate = 100; //sample rate [Hz]
   bar.setup();
 
   // MAG - External Magnetometer
   mag.config.gizmo = (Cfg::mag_gizmo_enum)cfg.mag_gizmo; //the gizmo to use
   mag.config.i2c_bus = hal_get_i2c_bus(cfg.mag_i2c_bus); //i2c bus
   mag.config.i2c_adr = cfg.mag_i2c_adr; //i2c address. 0=default address
-  mag.config.sampleRate = 100; //sample rate [Hz]
+  mag.config.sample_rate = 100; //sample rate [Hz]
   mag.setup(); 
 
   // BAT - Battery Monitor
   bat.config.gizmo = (Cfg::bat_gizmo_enum)cfg.bat_gizmo; //the gizmo to use
   bat.config.i2c_bus = hal_get_i2c_bus(cfg.bat_i2c_bus); //i2c bus
   bat.config.i2c_adr = cfg.bat_i2c_adr; //i2c address. 0=default address
-  bat.config.sampleRate = 100; //sample rate [Hz]
+  bat.config.sample_rate = 100; //sample rate [Hz]
   bat.config.adc_pin_v = cfg.pin_bat_v;
   bat.config.adc_pin_i = cfg.pin_bat_i;
   bat.config.adc_cal_v = cfg.bat_cal_v;
@@ -199,7 +164,7 @@ void madflight_setup() {
   bat.config.rshunt = cfg.bat_cal_i;
   bat.setup();
 
-  //RDR
+  // RDR - Radar/Lidar/Sonar sensors
   rdr.config.gizmo = (Cfg::rdr_gizmo_enum)cfg.rdr_gizmo; //the gizmo to use
   rdr.config.rdr_ser_bus  = cfg.rdr_ser_bus; //serial bus
   rdr.config.rdr_baud     = cfg.rdr_baud; //baud rate
@@ -209,7 +174,7 @@ void madflight_setup() {
   rdr.config.rdr_i2c_adr  = cfg.rdr_i2c_adr;
   rdr.setup();
 
-  //OFL
+  // OFL - Optical flow sensor
   ofl.config.ofl_gizmo    = (Cfg::ofl_gizmo_enum)cfg.ofl_gizmo; //the gizmo to use
   ofl.config.ofl_spi_bus  = cfg.ofl_spi_bus; // spi bus
   ofl.config.pin_ofl_cs   = cfg.pin_ofl_cs;  // spi cs pin
@@ -246,7 +211,7 @@ void madflight_setup() {
   ahr.setup();
 
   // IMU - Intertial Measurement Unit (gyro/acc/mag)
-  imu.config.sampleRate = cfg.imu_rate; //sample rate [Hz]
+  imu.config.sample_rate_requested = cfg.imu_rate; //sample rate [Hz]
   imu.config.pin_int = cfg.pin_imu_int; //IMU data ready interrupt pin
   imu.config.gizmo = (Cfg::imu_gizmo_enum)cfg.imu_gizmo; //the gizmo to use
   imu.config.spi_bus = hal_get_spi_bus(cfg.imu_spi_bus); //SPI bus
@@ -256,32 +221,42 @@ void madflight_setup() {
   imu.config.uses_i2c = ((Cfg::imu_bus_type_enum)cfg.imu_bus_type == Cfg::imu_bus_type_enum::mf_I2C);
   imu.config.pin_clkin = cfg.pin_imu_clkin; //CLKIN pin for ICM-42866-P - only tested for RP2 targets
 
-  // Some sensors need a couple of tries...
+  // Some IMU sensors need a couple of tries...
   int tries = 10;
   while(true) {
     int rv = imu.setup(); //request 1000 Hz sample rate, returns 0 on success, positive on error, negative on warning
     if(rv<=0) break;
     tries--;
-    madflight_warn_or_die("IMU init failed rv= " + String(rv) + ".", (tries <= 0) );
+    Serial.printf("IMU: WARNING init failed rv=%d\n", rv);
   }
   if(!imu.installed() && (Cfg::imu_gizmo_enum)cfg.imu_gizmo != Cfg::imu_gizmo_enum::mf_NONE) {
-    madflight_die("IMU install failed.");
+    madflight_panic("IMU install failed.");
   }
-  // start IMU update handler
+
+  // connect imu internal magnetometer to mag
+  if(imu.config.has_mag && !mag.gizmo) {
+    mag.gizmo = new MagGizmoIMU((MagState*)&mag);
+    imu.config.pmag = &mag;
+    Serial.println("IMU: magnetometer installed");
+  }
+
+  // Start IMU update handler
   if(imu.installed()) {
     ahr.setInitalOrientation(); //do this before IMU update handler is started
 
-    if(!imu_loop) madflight_warn("'void imu_loop()' not defined.");
+    if(!imu_loop) Serial.println("IMU: WARNING 'void imu_loop()' not defined.");
     imu.onUpdate = imu_loop;
-    if(!imu.waitNewSample()) madflight_die("IMU interrupt not firing. Is pin 'pin_imu_int' connected?");
+    if(!imu.waitNewSample()) {
+      madflight_panic(String("IMU interrupt not firing. Is pin_imu_int GPIO" + String(cfg.pin_imu_int) + String(" connected?")));
+    }
 
     #ifndef MF_DEBUG
-      // switch off LED to signal calibration
+      // Switch off LED to signal calibration
       led.enabled = true;
       led.off();
       led.enabled = false;
       
-      //Calibrate for zero gyro readings, assuming vehicle not moving when powered up. Comment out to only use cfg values. (Use CLI to calibrate acc.)
+      // Calibrate for zero gyro readings, assuming vehicle not moving when powered up. Comment out to only use cfg values. (Use CLI to calibrate acc.)
       cli.calibrate_gyro();
     #endif
   }
@@ -289,47 +264,22 @@ void madflight_setup() {
   // LUA - Start Lua script /madflight.lua from SDCARD (when #define MF_LUA_ENABLE 1)
   lua.begin();
 
+  //report I2C clock speeds
+  for(int i=0;i<2;i++) {
+    MF_I2C* i2c = hal_get_i2c_bus(i);
+    if(i2c) {
+      Serial.printf("I2C: bus:%d clock:%d\n", i, (int)i2c->getClock());
+    }
+  }
+
   // CLI - Command Line Interface
   cli.begin();
 
-  // Enable LED, and switch it to green to signal end of startup.
+  // LED - Enable and switch it to green to signal end of startup.
   led.enabled = true;
   led.color(0x00ff00); //switch color to green
   led.on();
+
+  RuntimeTraceGroup::reset();
 }
 
-//===============================================================================================
-// HELPERS
-//===============================================================================================
-
-void madflight_die(String msg) {
-  bool do_print = true;
-  led.enabled = true;
-  for(;;) {
-    if(do_print) Serial.print("FATAL ERROR: " + msg + " Use CLI or reboot.\n");
-    for(int i=0;i<20;i++) {
-      led.toggle();
-      uint32_t ts = millis();
-      while(millis() - ts < 50) {
-        if(cli.update()) do_print = false; //process CLI commands, stop error output after first command
-        rcl.update(); //keep rcl (mavlink?) running
-      } 
-    }
-  }
-}
-void madflight_warn(String msg) { 
-  Serial.print("WARNING: " + msg + "\n");
-  //flash LED for 1 second
-  for(int i=0;i<20;i++) {
-    led.toggle();
-    delay(50);
-  }
-}
-
-void madflight_warn_or_die(String msg, bool die) {
-  if(die) {
-    madflight_die(msg);
-  }else{
-    madflight_warn(msg);
-  }
-}

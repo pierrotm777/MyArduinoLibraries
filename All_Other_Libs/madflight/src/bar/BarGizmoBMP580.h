@@ -41,8 +41,9 @@ private:
   BMP581 pressureSensor;
 
 public:
-  BarGizmoBMP580(MF_I2C *i2c, int8_t i2c_adr, uint32_t sampleRate) {
-    (void) sampleRate; //TODO - currently fixed at 87 Hz (16x OSR_P, 1x OSR_T, CONTINUOUS mode)
+  const char* name() override {return "BMP580";}
+  BarGizmoBMP580(MF_I2C *i2c, int8_t i2c_adr, uint32_t sample_rate) {
+    (void) sample_rate; //TODO - currently fixed at 87 Hz (16x OSR_P, 1x OSR_T, CONTINUOUS mode)
 
     if(i2c_adr == 0) i2c_adr = 0x47; // fixed: 0x47 or 0x46
     
@@ -98,6 +99,8 @@ public:
   }
 
   bool update(float *press, float *temp) override {
+    if(micros() - ((BarState*)this)->ts < 10000) return false; //sample rate is 85Hz, 11.7ms, bail out if last sample was less than 10 ms ago
+
     // Variable to track errors returned by API calls
     int8_t err = BMP5_OK;
 

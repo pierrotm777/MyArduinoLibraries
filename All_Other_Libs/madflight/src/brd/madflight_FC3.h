@@ -14,14 +14,10 @@ LED: WS2812B
 #include <Arduino.h> //needed for ARDUINO_PICO_MAJOR etc
 
 #if !ARDUINO_ARCH_RP2040
-  #error "Invalid Arduino Architecture: Select Arduino Pico"
-#endif
-
-#if (ARDUINO_PICO_MAJOR * 10000 + ARDUINO_PICO_MINOR * 100 + ARDUINO_PICO_REVISION) < 50100
+  #error "Invalid Arduino Architecture: Select Arduino Pico, or include a different board with MF_BOARD"
+#elif (ARDUINO_PICO_MAJOR * 10000 + ARDUINO_PICO_MINOR * 100 + ARDUINO_PICO_REVISION) < 50100
   #error "Invalid Arduino Framework version: Install Arduino Pico version 5.1.0 or later"
-#endif
-
-#if !PICO_RP2350 || PICO_RP2350A
+#elif !PICO_RP2350 || PICO_RP2350A
   #error "Invalid board: Select board Solder Party Stamp XL RP2350B"
 #endif
 
@@ -70,7 +66,7 @@ bat_i2c_bus   0
 pin_bat_i     -1
 pin_bat_v     -1
 bat_cal_v     1 //adc voltage scale, value is: actual_voltage_in_v / adc_reading
-bat_cal_i     0.0005 //adc current scale, value is: actual_current_in_a / adc_reading; for ina226/228: rshunt value in ohm
+bat_cal_i     0.002 //adc current scale, value is: actual_current_in_a / adc_reading; for ina226/228: rshunt value in ohm
 
 //--- GPS ---
 gps_gizmo     NONE  // options: NONE, UBLOX

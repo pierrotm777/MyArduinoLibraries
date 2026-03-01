@@ -34,6 +34,7 @@ SOFTWARE.
 #include "RdrGizmoSR04.h"
 #include "RdrGizmoDTS6012M_UART.h"
 #include "RdrGizmoDTS6012M_I2C.h"
+#include "RdrGizmoVL53L3CX.h"
 
 //create global module instance
 Rdr rdr;
@@ -69,6 +70,9 @@ int Rdr::setup() {
         gizmo = RdrGizmoDTS6012M_I2C::create(&config, (RdrState*)this);
       }
       break;
+    case Cfg::rdr_gizmo_enum::mf_VL53L3CX :
+      gizmo = RdrGizmoVL53L3CX::create(&config, (RdrState*)this);
+      break;
   }
 
   //check gizmo
@@ -81,10 +85,16 @@ int Rdr::setup() {
 }
 
 bool Rdr::update() {
-  if(!gizmo) return false;
-  if(!gizmo->update()) return false;
-  update_ts = micros();
-  update_cnt++;
-  return true;
+  runtimeTrace.start();
+  bool updated = (gizmo != nullptr);
+  updated = updated && gizmo->update();
+
+  if(updated) {
+    update_ts = micros();
+    update_cnt++;
+  }
+
+  runtimeTrace.stop(updated);
+  return updated;
 }
 

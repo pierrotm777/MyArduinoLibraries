@@ -46,7 +46,6 @@ static uint16_t Jeti_crc16_CCITT(uint16_t crc, uint8_t value); // For JETI
 
 #define MIN_SILENCE_TIME_MS  3 // We have to wait at least 2 ms of silence before listening for the protocol frame header
 
-#define SBUS_BIT_PER_CH      11
 
 /*************************************************************************
                               GLOBAL VARIABLES
@@ -202,7 +201,7 @@ void RcBusRxClass::process(void)
         case RCBUSRX_SBUS_WAIT_FOR_END_OF_DATA:
         RawData[RAW_IN_PROGRESS][RxIdx] = RxChar;
         RxIdx++;
-        if(RxIdx == SBUS_RX_DATA_NB - 1)
+        if(RxIdx == SBUS_RX_DATA_NB)
         {
           /* Check next byte is 0x00 */
           RxState = RCBUSRX_SBUS_WAIT_FOR_0x00;
@@ -212,7 +211,7 @@ void RcBusRxClass::process(void)
         case RCBUSRX_SBUS_WAIT_FOR_0x00:
         if(RxChar == 0x00)
         {
-          if(RxIdx == SBUS_RX_DATA_NB - 1)
+          if(RxIdx == SBUS_RX_DATA_NB)
           {
             /* Update RawData[RAW_AVAILABLE] */
             memcpy(RawData[RAW_AVAILABLE], RawData[RAW_IN_PROGRESS], sizeof(RawData[0]));

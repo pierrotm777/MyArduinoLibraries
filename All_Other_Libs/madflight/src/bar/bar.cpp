@@ -55,33 +55,33 @@ int Bar::setup() {
       break;
     case Cfg::bar_gizmo_enum::mf_BMP280 :
       if(config.i2c_bus) {
-        gizmo = new BarGizmoBMP280(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = new BarGizmoBMP280(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
     case Cfg::bar_gizmo_enum::mf_BMP388 :
     case Cfg::bar_gizmo_enum::mf_BMP390 :
       if(config.i2c_bus) {
-        gizmo = new BarGizmoBMP390(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = new BarGizmoBMP390(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
     case Cfg::bar_gizmo_enum::mf_MS5611 :
       if(config.i2c_bus) {
-        gizmo = new BarGizmoMS5611(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = new BarGizmoMS5611(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
     case Cfg::bar_gizmo_enum::mf_HP203B :
       if(config.i2c_bus) {
-        gizmo = new BarGizmoHP203B(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = new BarGizmoHP203B(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
     case Cfg::bar_gizmo_enum::mf_BMP580 :
       if(config.i2c_bus) {
-        gizmo = new BarGizmoBMP580(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = new BarGizmoBMP580(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
     case Cfg::bar_gizmo_enum::mf_DPS310 :
       if(config.i2c_bus) {
-        gizmo = BarGizmoDPS310::create(config.i2c_bus, config.i2c_adr, config.sampleRate);
+        gizmo = BarGizmoDPS310::create(config.i2c_bus, config.i2c_adr, config.sample_rate);
       }
       break;
   }
@@ -96,17 +96,21 @@ int Bar::setup() {
 }
 
 bool Bar::update() {
-  if(!gizmo) return false;
+  runtimeTrace.start();
+  bool updated = (gizmo != nullptr);
+  updated = updated && gizmo->update(&press, &temp);
 
-  if(!gizmo->update(&press, &temp)) return false; //exit if no new sample available
+  if(updated) {
+    float P = press;
+    //float T = temp;
+    //alt = 153.84348f * (1 - pow(P / 101325.0f, 0.19029496f)) * (T + 273.15f); //hypsometric formula - reduces to barometric with T=15C
+    alt = 44330.0f * (1 - pow(P / 101325.0f, 0.19029496f)); //barometric formula  0.19029496 = 1/5.255
+    //alt = (101325.0f - P) / 12.0f; //linearisation of barometric formula at sealevel
+    uint32_t now = micros();
+    dt = (now - ts) / 1000000.0;
+    ts = now;
+  }
 
-  float P = press;
-  //float T = temp;
-  //alt = 153.84348f * (1 - pow(P / 101325.0f, 0.19029496f)) * (T + 273.15f); //hypsometric formula - reduces to barometric with T=15C
-  alt = 44330.0f * (1 - pow(P / 101325.0f, 0.19029496f)); //barometric formula  0.19029496 = 1/5.255
-  //alt = (101325.0f - P) / 12.0f; //linearisation of barometric formula at sealevel
-  uint32_t now = micros();
-  dt = (now - ts) / 1000000.0;
-  ts = now;
-  return true;
+  runtimeTrace.stop(updated);
+  return updated;
 }

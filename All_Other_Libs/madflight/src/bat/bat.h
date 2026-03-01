@@ -26,6 +26,7 @@ SOFTWARE.
 
 #include "../hal/MF_I2C.h"
 #include "../cfg/cfg.h"
+#include "../tbx/RuntimeTrace.h"
 
 struct BatState {
   public:
@@ -39,7 +40,7 @@ struct BatState {
 
 struct BatConfig {
   public:
-    uint32_t sampleRate = 100; //sample rate [Hz]
+    uint32_t sample_rate = 100; //sample rate [Hz]
     Cfg::bat_gizmo_enum gizmo = Cfg::bat_gizmo_enum::mf_NONE; //the gizmo to use
     MF_I2C *i2c_bus = nullptr; //i2c bus
     uint8_t i2c_adr = 0; //i2c address. 0=default address
@@ -65,6 +66,9 @@ class Bat : public BatState {
     int setup();      // Use config to setup gizmo, returns 0 on success, or error code
     bool update();    // Returns true if state was updated
     bool installed() {return (gizmo != nullptr); } // Returns true if a gizmo was setup
+
+  private:
+    RuntimeTrace runtimeTrace = RuntimeTrace("BAT");
 };
 
 //Global module instance

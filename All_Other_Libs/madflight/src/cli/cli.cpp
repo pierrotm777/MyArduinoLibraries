@@ -1,25 +1,7 @@
 #include "cli.h"
-#include "../madflight_version.h"
+#include "../madflight_modules.h"
 
-//include all module interfaces
-#include "../ahr/ahr.h"
-#include "../alt/alt.h"
-#include "../bar/bar.h"
-#include "../bat/bat.h"
-#include "../cfg/cfg.h"
-#include "../gps/gps.h"
-#include "../hal/hal.h"
-#include "../imu/imu.h"
-#include "../led/led.h"
-#include "../bbx/bbx.h"
-#include "../mag/mag.h"
-#include "../ofl/ofl.h"
-#include "../out/out.h"
-#include "../pid/pid.h"
-#include "../rcl/rcl.h"
-#include "../rdr/rdr.h"
-#include "../veh/veh.h"
-
+#include "msp/msp.h"
 #include "cli_RclCalibrate.h"
 
 #include "stat.h"
@@ -177,11 +159,7 @@ static void cli_pmag() {
 }
 
 static void cli_pahr() {
-    // from ahr.h:
-  // roll in degrees: -180 to 180, roll right is +
-  // pitch in degrees: -90 to 90, pitch up is +
-  // yaw in degrees: -180 to 180, yaw right is positive
-  const char* roll_str = (ahr.roll >= 0.0) ? "right" : "left"; // roll right is clockwise, is it?
+  const char* roll_str = (ahr.roll >= 0.0) ? "right" : "left";
   const char* pitch_str = (ahr.pitch >= 0.0) ? "up" : "down";
   const char* yaw_str = (ahr.yaw >= 0.0) ? "right" : "left";
   Serial.printf("roll:%+.1f (roll %s)\tpitch:%+.1f (pitch %s)\tyaw:%+.1f (yaw %s)\t", ahr.roll, roll_str, ahr.pitch, pitch_str, ahr.yaw, yaw_str);
@@ -202,16 +180,16 @@ static void cli_pout() {
   for(int i=0;i<OUT_SIZE;i++) {
     if(out.getType(i)) {
       Serial.printf("%c%d%%:%1.0f\t", out.getType(i), i, 100*out.get(i));
+      if(out.eperiodEnabled[i]) {
+        Serial.printf("rpm%d:%d\t", i, out.rpm(i));
+      }
     }
   }
 }
 
 static void cli_pimu() {
-  static uint32_t interrupt_cnt_last = 0;
   static uint32_t update_cnt_last = 0;
   static uint32_t ts_last = 0;
-  uint32_t delta_int = imu.interrupt_cnt - interrupt_cnt_last;
-  interrupt_cnt_last = imu.interrupt_cnt;
   uint32_t delta_upd = imu.update_cnt - update_cnt_last;
   update_cnt_last = imu.update_cnt;
   int miss_cnt = (int)imu.interrupt_cnt - imu.update_cnt;
@@ -220,17 +198,14 @@ static void cli_pimu() {
   uint32_t dt = now - ts_last;
   ts_last = now;
 
-  int hz = 0;
-  if(imu.getSamplePeriod() > 0) hz = 1000000 / imu.getSamplePeriod();
+  int hz = imu.config.sample_rate;
   Serial.printf("samp_hz:%d\t", hz);
 
   if(dt == 0) dt = 1;
-  //Serial.printf("intr_hz:%.0f\t", (float)delta_int/(dt*1e-6));
   Serial.printf("imu_loop_hz:%.0f\t", (float)delta_upd/(dt*1e-6));
 
   int stat_cnt = 1;
   if(imu.stat_cnt > 0) stat_cnt = imu.stat_cnt;
-  //Serial.printf("stat_cnt:%d\t", (int)(stat_cnt));
   Serial.printf("latency_us:%d\t", (int)(imu.stat_latency / stat_cnt));
   Serial.printf("rt_io_us:%d\t", (int)(imu.stat_io_runtime / stat_cnt));
   Serial.printf("rt_imu_loop_us:%d\t", (int)((imu.stat_runtime - imu.stat_io_runtime) / stat_cnt));
@@ -239,7 +214,6 @@ static void cli_pimu() {
   Serial.printf("rt_max_us:%d\t", (int)imu.stat_runtime_max);
   Serial.printf("rt_max%%:%d\t", (int)imu.stat_runtime_max * hz / 10000);
   Serial.printf("int_cnt:%d\t", (int)imu.interrupt_cnt);
-  //Serial.printf("upd_cnt:%d\t", (int)imu.update_cnt);
   Serial.printf("miss_cnt:%d\t", (int)miss_cnt);
   imu.statReset();
 }
@@ -260,7 +234,6 @@ static void cli_pbar() {
 static void cli_pgps() {
   Serial.printf("gps.time:%d\t", (int)gps.time);
   Serial.printf("fix:%d\t", (int)gps.fix);
-  //Serial.printf("date:%d\t", (int)gps.date);
   Serial.printf("sat:%d\t", (int)gps.sat);
   Serial.printf("lat:%d\t", (int)gps.lat);
   Serial.printf("lon:%d\t", (int)gps.lon);
@@ -336,32 +309,95 @@ void Cli::setup() {
   cli_print_all(false);
 }
 
-//returns true if a command was processed (even an invalid one)
-bool Cli::update() {
-  if(mavlink) {
-    return mavlink->update();
-  }else{
-    //process chars from Serial
-    bool rv = false;
-    while(Serial.available()) {
-      uint8_t c = Serial.read();
-      if(c == 0xFD || c == 0xFE) { //mavlink v1,v2 protocol header byte
-        auto ser = &Serial;
-        MF_Serial *ser_bus = new MF_SerialPtrWrapper<decltype(ser)>( ser );
-        mavlink = new RclGizmoMavlink(ser_bus, 115200, nullptr);
-        return false;
-      }
-      if(cmd_process_char(c)) rv = true;
+
+bool Cli::update_MODE_CLI() {
+  bool rv = false;
+  //process chars from Serial
+  int n = Serial.available(); //Note: Serial.read(&c,1) does not work on all platforms
+  for(int i = 0; i < n; i++) {  
+    uint8_t c = Serial.read();
+    //---------------------------
+    // MSP check
+    //---------------------------
+    //switch to MSP if we received a MSP command
+    if(Msp::process_byte(c)) {
+      cli_mode = MODE_MSP;
+      return update_MODE_MSP(); //process remaining chars in serial buffer
     }
 
-    //handle output for pxxx commands
-    cli_print_loop();
+    //---------------------------
+    // MAVLINK check
+    //---------------------------
+    //check for MAVLINK v1,v2 protocol header byte, start mavlink parser
+    if((c == 0xFD || c == 0xFE) && !mavlink) {
+      auto ser = &Serial;
+      MF_Serial *ser_bus = new MF_SerialPtrWrapper<decltype(ser)>( ser );
+      mavlink = new RclGizmoMavlink(ser_bus, -1, nullptr);
+    }
+    //switch to MAVLINK as soon as we received a MAVLINK message
+    if(mavlink && mavlink->process_char(c) != RclGizmoMavlink::process_result_enum::NONE) {
+      cli_mode = MODE_MAV;
+      return update_MODE_MAV(); //process remaining chars in serial buffer
+    }
 
-    //for TinyUSB
-    Serial.flush();
-
-    return rv;
+    //---------------------------
+    // process CLI command
+    //---------------------------
+    if(cmd_process_char(c)) rv = true;
   }
+  //handle output for pxxx commands
+  cli_print_loop();
+
+  return rv;
+}
+
+bool Cli::update_MODE_MSP() {
+  static bool last_msp_rv = false;
+  bool rv = false;
+
+  //process chars from Serial
+  int n = Serial.available(); //Note: Serial.read(&c,1) does not work on all platforms
+  for(int i = 0; i < n; i++) {  
+    uint8_t c = Serial.read();
+
+    //switch back to MODE_CLI if a single '#' is received directrly after the last msp command
+    if(last_msp_rv == true && c == '#') {
+      cli_mode = MODE_CLI;
+      last_msp_rv = false;
+      return Cli::update_MODE_CLI();
+    }
+
+    //process MSP character
+    rv = Msp::process_byte(c);
+    last_msp_rv = rv;
+  }
+  return rv;
+}
+
+bool Cli::update_MODE_MAV() {
+  return mavlink->update();
+}
+
+//returns true if a command was processed (even an invalid one)
+bool Cli::update() {
+  runtimeTrace.start();
+
+  bool updated = false;
+  switch(cli_mode) {
+    case MODE_CLI: 
+      updated = update_MODE_CLI();
+      break;
+    case MODE_MSP: 
+      updated =  update_MODE_MSP();
+      break;
+    case MODE_MAV: 
+      updated = update_MODE_MAV();
+      break;
+  }
+  Serial.flush(); //for TinyUSB
+
+  runtimeTrace.stop(updated);
+  return updated;
 }
 
 void Cli::begin() {
@@ -567,7 +603,7 @@ void Cli::executeCmd(String cmd, String arg1, String arg2) {
     cli_print_all(false);
     RclCalibrate::calibrate();
   }else if (cmd == "ps") {
-    freertos_ps();
+    ps();
   }else if (cmd == "serial") {
     cli_serial(arg1.toInt());
   }else if (cmd == "spinmotors") {
@@ -575,9 +611,7 @@ void Cli::executeCmd(String cmd, String arg1, String arg2) {
   }else if (cmd != "") {
     Serial.println("ERROR Unknown command - Type help for help");
   }
-
 }
-
 
 //========================================================================================================================//
 //                                          HELPERS                                                                       //
@@ -589,6 +623,10 @@ void Cli::print_i2cScan() {
   for(int bus_i=0;bus_i<4;bus_i++) {
     MF_I2C *i2c = hal_get_i2c_bus(bus_i);
     if(i2c) {
+      //set clock speed to 100k
+      uint32_t clock = i2c->getClock();
+      i2c->setClock(100000);
+      //do scan
       Serial.printf("I2C: Scanning i2c_bus:%d - ", bus_i);
       int count = 0;
       for (byte i = 1; i < 128; i++) {
@@ -599,6 +637,8 @@ void Cli::print_i2cScan() {
         }
       }
       Serial.printf("- Found %d device(s)\n", count);
+      //restore original clock speed
+      i2c->setClock(clock);
     }
   }
 }
@@ -702,7 +742,7 @@ void Cli::calibrate_Magnetometer() {
 
   if (mag.installed()) {
     Serial.print("EXT ");
-  }else if (imu.hasMag()) {
+  }else if (imu.config.has_mag) {
     Serial.print("IMU ");
   }
   Serial.println("Magnetometer calibration. Rotate the IMU about all axes until complete.");
@@ -729,22 +769,12 @@ void Cli::calibrate_Magnetometer() {
   }
 }
 
-
-
-//get a reading from the external or imu magnetometer
+//get a reading from the magnetometer
 bool Cli::_calibrate_Magnetometer_ReadMag(float *m) {
-  if (mag.installed()) {
-    mag.update();
-    m[0] = mag.x;
-    m[1] = mag.y;
-    m[2] = mag.z;
-  }else{
-    if(!imu.hasMag()) return false;
-    imu.waitNewSample();
-    m[0] = imu.mx;
-    m[1] = imu.my;
-    m[2] = imu.mz;
-  }
+  mag.update();
+  m[0] = mag.mx;
+  m[1] = mag.my;
+  m[2] = mag.mz;
   return true;
 }
 
@@ -765,7 +795,7 @@ bool Cli::_calibrate_Magnetometer(float bias[3], float scale[3])
   float m_min[3];
 
   //exit if no mag present
-  if(!_calibrate_Magnetometer_ReadMag(m)) return false;
+  if(!mag.installed()) return false;
 
   // get starting set of data
   for(int i=0;i<50;i++) {
@@ -834,16 +864,27 @@ bool Cli::_calibrate_Magnetometer(float bias[3], float scale[3])
 
 
 void Cli::calibrate_info(int seconds) {
-  if(seconds<=0) seconds = 3;
-  Serial.printf("Gathering sensor statistics, please wait %d seconds ...\n", seconds);
+  bool report_spikes = (seconds >= 0);
+  if(seconds < 0) seconds = -seconds;
+  if(seconds == 0) seconds = 3;
+  Serial.printf("Gathering sensor statistics, please wait %d seconds ...\n\n", seconds);
 
-  Stat ax,ay,az,gx,gy,gz;
-  Stat sp,sa,st;
-  Stat mx,my,mz;
+  Stat ax(1000),ay(1000),az(1000);
+  Stat gx(1000),gy(1000),gz(1000);
+  Stat sp(1000),sa(1000),st(1000);
+  Stat mx(1000),my(1000),mz(1000);
   uint32_t last_cnt = imu.update_cnt;
-  uint32_t ts = millis();
+  uint32_t ts = micros();
 
-  while((uint32_t)millis() - ts < (uint32_t)1000*seconds) {
+  float bp_last = 0;
+  float ba_last = 0;
+  float bt_last = 0;
+
+  float mx_last = 0;
+  float my_last = 0;
+  float mz_last = 0;
+
+  while((uint32_t)micros() - ts < (uint32_t)1000000*seconds) {
     if(last_cnt != imu.update_cnt) {
       ax.append(imu.ax);
       ay.append(imu.ay);
@@ -851,40 +892,77 @@ void Cli::calibrate_info(int seconds) {
       gx.append(imu.gx);
       gy.append(imu.gy);
       gz.append(imu.gz);
-      last_cnt = imu.update_cnt;
+      last_cnt = imu.update_cnt;  
     }
-    if(bar.installed() && bar.update()) {
+    if(bar.installed() && bar.update() && ((bar.press != bp_last) || (bar.alt != ba_last) || (bar.temp != bt_last))) {
+      //only record if at least one value is changed
       sp.append(bar.press);
       sa.append(bar.alt);
       st.append(bar.temp);
+      bp_last = bar.press;
+      ba_last = bar.alt;
+      bt_last = bar.temp;
     }
-    if(mag.installed() && mag.update()) {
-      mx.append(mag.x);
-      my.append(mag.y);
-      mz.append(mag.z);
+    if(mag.installed() && mag.update() && ((mag.mx != mx_last) || (mag.my != my_last) || (mag.mz != mz_last))) {
+      //only record if at least one value is changed
+      mx.append(mag.mx);
+      my.append(mag.my);
+      mz.append(mag.mz);
+      mx_last = mag.mx;
+      my_last = mag.my;
+      mz_last = mag.mz;
     }
   } 
 
-  Serial.printf("=== Gyro - Sample rate: %d Hz===\n", gx.n/seconds );
-  gx.print("gx[deg/s]     ");
-  gy.print("gy[deg/s]     ");
-  gz.print("gz[deg/s]     ");
-  Serial.printf("=== Accelerometer - Sample rate: %d Hz===\n", ax.n/seconds );
-  ax.print("ax[g]         ");
-  ay.print("ay[g]         ");
-  az.print("az[g]         ");
-  if(bar.installed()) {
-    Serial.printf("=== Barometer - Sample rate: %d Hz===\n", sp.n/seconds );
-    sa.print("Altitude[m]   ");
-    sp.print("Pressure[Pa]  ");
-    st.print("Temperature[C]");
+  if(report_spikes) {
+    Serial.printf("### SENSOR SPIKE REPORT - " MADFLIGHT_VERSION " ###\n\n");
+    Serial.printf("=== %s Gyro %s ===\n", imu.name(), (imu.config.uses_i2c?"I2C":"SPI"));
+    gx.print_spikes("gx[deg/s]     ");
+    gy.print_spikes("gy[deg/s]     ");
+    gz.print_spikes("gz[deg/s]     ");
+    Serial.printf("=== %s Accelerometer %s ===\n", imu.name(), (imu.config.uses_i2c?"I2C":"SPI"));
+    ax.print_spikes("ax[g]         ");
+    ay.print_spikes("ay[g]         ");
+    az.print_spikes("az[g]         ");
+    if(sp.n > 0) {
+      Serial.printf("=== %s Barometer I2C ===\n", bar.name());
+      sa.print_spikes("Altitude[m]   ");
+      sp.print_spikes("Pressure[Pa]  ");
+      st.print_spikes("Temperature[C]");
+    }
+    if(mx.n > 0) {
+      Serial.printf("=== %s Magnetometer I2C ===\n", mag.name());
+      mx.print_spikes("mx[uT]        ");
+      my.print_spikes("my[uT]        ");
+      mz.print_spikes("mz[uT]        ");
+    }
+    Serial.println();
   }
-  if(mag.installed()) {
-    Serial.printf("=== Magnetometer (external) - Sample rate: %d Hz===\n", mx.n/seconds );
-    mx.print("mx[uT]        ");
-    my.print("my[uT]        ");
-    mz.print("mz[uT]        ");
+
+  Serial.printf("### SENSOR STATISTICS REPORT - " MADFLIGHT_VERSION " ###\n\n");
+  Serial.printf("=== %s Gyro %s ===\n", imu.name(), (imu.config.uses_i2c ? "I2C" : "SPI"));
+  gx.print("gx[deg/s]     ", seconds);
+  gy.print("gy[deg/s]     ", seconds);
+  gz.print("gz[deg/s]     ", seconds);
+  Serial.printf("=== %s Accelerometer %s ===\n", imu.name(), (imu.config.uses_i2c ? "I2C" : "SPI"));
+  ax.print("ax[g]         ", seconds);
+  ay.print("ay[g]         ", seconds);
+  az.print("az[g]         ", seconds);
+  if(sp.n > 0) {
+    Serial.printf("=== %s Barometer I2C ===\n", bar.name());
+    sa.print("Altitude[m]   ", seconds);
+    sp.print("Pressure[Pa]  ", seconds);
+    st.print("Temperature[C]", seconds);
   }
+  if(mx.n > 0) {
+    float f = sqrt(mx.mean() * mx.mean() + my.mean() * my.mean() + mz.mean() * mz.mean());
+    Serial.printf("=== %s Magnetometer I2C - Field Strength: %.2f uT===\n", mag.name(), f);
+    mx.print("mx[uT]        ", seconds);
+    my.print("my[uT]        ", seconds);
+    mz.print("mz[uT]        ", seconds);
+  }
+
+  Serial.println("\ncalinfo completed\n");
 }
 
 //========================================================================================================================//
@@ -917,4 +995,10 @@ void Cli::cli_print_loop() {
     if (cli_print_need_newline) Serial.println();
     imu.stat_runtime_max = 0; //reset maximum runtime
   }
+}
+
+void Cli::ps() {
+  hal_print_resources();
+  freertos_ps();
+  RuntimeTraceGroup::print();
 }

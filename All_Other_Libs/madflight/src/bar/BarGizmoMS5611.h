@@ -8,11 +8,9 @@ class BarGizmoMS5611: public BarGizmo {
 protected: 
   MS5611 ms5611;
 public:
-  //float press_pa = 0;
-  //float temp_c = 0;
-
-  BarGizmoMS5611(MF_I2C *i2c, int8_t i2c_adr, uint32_t sampleRate) {
-    (void) sampleRate;
+  const char* name() override {return "MS5611";}
+  BarGizmoMS5611(MF_I2C *i2c, int8_t i2c_adr, uint32_t sample_rate) {
+    (void) sample_rate;
     (void) i2c_adr; //gizmo has fixed address 0x77
     // Initialize MS5611 gizmo
     // Ultra high resolution: MS5611_ULTRA_HIGH_RES

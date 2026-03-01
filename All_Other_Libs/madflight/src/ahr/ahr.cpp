@@ -34,6 +34,7 @@ SOFTWARE.
 #include "../imu/imu.h"
 #include "../cfg/cfg.h"
 #include "../tbx/common.h" //lowpass_to_beta
+#include "../tbx/RuntimeTrace.h"
 
 //create global module instance
 Ahr ahr;
@@ -41,9 +42,9 @@ Ahr ahr;
 int Ahr::setup() {
   cfg.printModule(MF_MOD);
 
-  B_gyr = lowpass_to_beta(config.gyrLpFreq, config.pimu->getSampleRate());
-  B_acc = lowpass_to_beta(config.accLpFreq, config.pimu->getSampleRate());
-  B_mag = lowpass_to_beta(config.magLpFreq, config.pimu->getSampleRate());
+  B_gyr = lowpass_to_beta(config.gyrLpFreq, config.pimu->config.sample_rate);
+  B_acc = lowpass_to_beta(config.accLpFreq, config.pimu->config.sample_rate);
+  B_mag = lowpass_to_beta(config.magLpFreq, config.pimu->config.sample_rate);
 
   //create gizmo
   delete gizmo;
@@ -69,6 +70,8 @@ int Ahr::setup() {
 }
 
 bool Ahr::update() {
+  runtimeTrace.start();
+
   // get sensor data from imu and mag
   // correct the sensor data with the calibration values
   // use simple first-order low-pass filter to get rid of high frequency noise
@@ -87,27 +90,21 @@ bool Ahr::update() {
   gz += B_gyr * ((config.pimu->gz - config.gyr_offset[2]) - gz);
 
   //Magnetometer (External chip, or internal in IMU chip) 
-  float _mx, _my, _mz;
-  //If no external mag, then use internal mag
-  if(!config.pmag || (config.pmag->x == 0 && config.pmag->y == 0 && config.pmag->z == 0)) {
-    _mx = config.pimu->mx;
-    _my = config.pimu->my;
-    _mz = config.pimu->mz;
-  }else{
-    _mx = config.pmag->x;
-    _my = config.pmag->y;
-    _mz = config.pmag->z;
-  }
-  //update the mag values
-  if( ! (_mx == 0 && _my == 0 && _mz == 0) ) {
-    //Correct the mag values with the calibration values
-    _mx = (_mx - config.mag_offset[0]) * config.mag_scale[0];
-    _my = (_my - config.mag_offset[1]) * config.mag_scale[1];
-    _mz = (_mz - config.mag_offset[2]) * config.mag_scale[2];
-    //Low-pass filtered magnetometer data
-    mx += B_mag * (_mx - mx);
-    my += B_mag * (_my - my);
-    mz += B_mag * (_mz - mz);
+  if(config.pmag) {
+    float _mx = config.pmag->mx;
+    float _my = config.pmag->my;
+    float _mz = config.pmag->mz;
+    //update the mag values
+    if( ! (_mx == 0 && _my == 0 && _mz == 0) ) {
+      //Correct the mag values with the calibration values
+      _mx = (_mx - config.mag_offset[0]) * config.mag_scale[0];
+      _my = (_my - config.mag_offset[1]) * config.mag_scale[1];
+      _mz = (_mz - config.mag_offset[2]) * config.mag_scale[2];
+      //Low-pass filtered magnetometer data
+      mx += B_mag * (_mx - mx);
+      my += B_mag * (_my - my);
+      mz += B_mag * (_mz - mz);
+    }
   }else{
     mx = 0;
     my = 0;
@@ -124,6 +121,7 @@ bool Ahr::update() {
   //update euler angles
   computeAngles();
 
+  runtimeTrace.stop(true);
   return true;
 }
 
@@ -132,7 +130,7 @@ void Ahr::getQFromMag(float *q) {
   for(int i=0;i<100;i++) {
     uint32_t start = micros();
     config.pmag->update();
-    while(micros() - start < 1000000 / config.pimu->getSampleRate()); //wait until next sample time
+    while(micros() - start < 1000000 / config.pimu->config.sample_rate); //wait until next sample time
   }
 
   //update mx and my from mag or imu

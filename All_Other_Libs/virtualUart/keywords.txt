@@ -1,0 +1,7 @@
+VirtualUart	KEYWORD1
+push	KEYWORD2
+clear	KEYWORD2
+available	KEYWORD2
+read	KEYWORD2
+peek	KEYWORD2
+flush	KEYWORD

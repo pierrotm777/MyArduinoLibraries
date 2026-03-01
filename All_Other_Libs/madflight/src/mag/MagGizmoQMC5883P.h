@@ -23,7 +23,7 @@ SOFTWARE.
 ===========================================================================================*/
 
 /*
-Results polling sensor at full speed (by setting  mag.config.sampleRate = 10000 in madflight.h)
+Results polling sensor at full speed (by setting  mag.config.sample_rate = 10000 in madflight.h)
 
 CONTINOUS, RNG_2G
 
@@ -170,6 +170,7 @@ private:
 
 
 public:
+  const char* name() override {return "QMC5883P";}
   const float scale_uT = QMC5883P_uT_per_LSB; //scale factor to uT (at +/-200uT (+/-2G) RNG)
     int16_t mx; //raw adc values
     int16_t my;

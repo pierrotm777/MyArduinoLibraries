@@ -24,6 +24,8 @@ SOFTWARE.
 
 #pragma once
 
+#include <Arduino.h> //String
+
 //=========================================================================================
 // Parameter List
 //=========================================================================================
@@ -203,7 +205,7 @@ SOFTWARE.
   MF_PARAM( gps_baud,          0, int32_t, 'i') \
 \
   /*IMU - Inertial Measurement Unit (acc/gyro)*/ \
-  MF_PARAM( imu_gizmo,         0, int32_t, 'e', mf_NONE,mf_BMI270,mf_MPU6000,mf_MPU6050,mf_MPU6500,mf_MPU9150,mf_MPU9250,mf_ICM45686,mf_ICM42688,mf_ICM42688P) \
+  MF_PARAM( imu_gizmo,         0, int32_t, 'e', mf_NONE,mf_BMI270,mf_MPU6000,mf_MPU6050,mf_MPU6500,mf_MPU9150,mf_MPU9250,mf_ICM45686,mf_ICM42688,mf_ICM42688P,mf_AUTO,mf_LSM6DSV,mf_LSM6DSO) \
   MF_PARAM( imu_spi_bus,      -1, int32_t, 'i') \
   MF_PARAM( imu_i2c_bus,      -1, int32_t, 'i') \
   MF_PARAM( imu_i2c_adr,       0, int32_t, 'i') \
@@ -216,7 +218,7 @@ SOFTWARE.
   MF_PARAM( led_gizmo,         0, int32_t, 'e', mf_NONE,mf_HIGH_IS_ON,mf_LOW_IS_ON,mf_RGB) \
 \
   /*MAG - Magnetometer*/ \
-  MF_PARAM( mag_gizmo,         0, int32_t, 'e', mf_NONE,mf_QMC5883,mf_QMC6309,mf_RM3100,mf_QMC5883L,mf_QMC5883P,mf_MMC5603) \
+  MF_PARAM( mag_gizmo,         0, int32_t, 'e', mf_NONE,mf_QMC5883,mf_QMC6309,mf_RM3100,mf_QMC5883L,mf_QMC5883P,mf_MMC5603,mf_BMM150) \
   MF_PARAM( mag_i2c_bus,      -1, int32_t, 'i') \
   MF_PARAM( mag_i2c_adr,       0, int32_t, 'i') \
   MF_PARAM( mag_lp,         1e10, float, 'f') /*Magnetometer Gyro Low Pass Filter cutoff frequency in Hz (default 1e10Hz, i.e. no filtering) */ \
@@ -229,7 +231,7 @@ SOFTWARE.
   MF_PARAM( rcl_deadband,      0, int32_t, 'i') \
 \
   /*RDR - Radar*/ \
-  MF_PARAM( rdr_gizmo,         0, int32_t, 'e', mf_NONE,mf_LD2411S,mf_LD2413,mf_USD1,mf_SR04,mf_DTS6012M) \
+  MF_PARAM( rdr_gizmo,         0, int32_t, 'e', mf_NONE,mf_LD2411S,mf_LD2413,mf_USD1,mf_SR04,mf_DTS6012M,mf_VL53L3CX) \
   MF_PARAM( rdr_ser_bus,      -1, int32_t, 'i') \
   MF_PARAM( rdr_baud,          0, int32_t, 'i') \
 \
@@ -258,8 +260,6 @@ SOFTWARE.
   MF_PARAM( pin_imu_clkin,    -1, int32_t, 'p') /*CLKIN pin for ICM-42866-P - only tested for RP2 targets*/ \
 //end MF_PARAM_LIST
 
-
-#include <Arduino.h> //String
 
 //=========================================================================================
 // Generate parameter count, enums, lookup table, and CfgParam member variables from MF_PARAM_LIST
