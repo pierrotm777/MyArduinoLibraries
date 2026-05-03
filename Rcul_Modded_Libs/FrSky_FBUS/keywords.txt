@@ -1,0 +1,81 @@
+#######################################
+# FrSky_FBUS v0.9.0
+#######################################
+
+FrSky_FBUSClass	KEYWORD1
+FrSky_FBUS_TelemetryClass	KEYWORD1
+FrSkyFbusGpsData	KEYWORD1
+FrSky_FBUS	KEYWORD1
+FrSky_FBUS_Telemetry	KEYWORD1
+
+begin	KEYWORD2
+end	KEYWORD2
+serialAttach	KEYWORD2
+read	KEYWORD2
+processTelemetry	KEYWORD2
+
+channelCount	KEYWORD2
+channelRaw	KEYWORD2
+channelUs	KEYWORD2
+failsafe	KEYWORD2
+frameLost	KEYWORD2
+rssi	KEYWORD2
+lastStatus	KEYWORD2
+goodFrames	KEYWORD2
+crcErrors	KEYWORD2
+lengthErrors	KEYWORD2
+typeErrors	KEYWORD2
+
+setEnabled	KEYWORD2
+enabled	KEYWORD2
+setTelemetryEnabled	KEYWORD2
+telemetryEnabled	KEYWORD2
+setResponseDelayUs	KEYWORD2
+setTelemetryResponseDelayUs	KEYWORD2
+setVoltage_V	KEYWORD2
+setCurrent_A	KEYWORD2
+setVoltageRaw_cV	KEYWORD2
+setCurrentRaw_dA	KEYWORD2
+setTemperature1_C	KEYWORD2
+setTemperature2_C	KEYWORD2
+setTemperature1Raw_C	KEYWORD2
+setTemperature2Raw_C	KEYWORD2
+setRpm	KEYWORD2
+requests	KEYWORD2
+responses	KEYWORD2
+telemetryRequests	KEYWORD2
+telemetryResponses	KEYWORD2
+
+setGpsEnabled	KEYWORD2
+gpsEnabled	KEYWORD2
+setGpsFix	KEYWORD2
+setGps	KEYWORD2
+gps	KEYWORD2
+gpsProcessNMEA	KEYWORD2
+gpsProcessUBlox	KEYWORD2
+gpsProcessNmeaChar	KEYWORD2
+gpsProcessUbxByte	KEYWORD2
+
+RculIsSynchro	KEYWORD2
+RculGetWidth_us	KEYWORD2
+RculSetWidth_us	KEYWORD2
+
+FBUS_BAUD	LITERAL1
+MAX_CHANNELS	LITERAL1
+DEFAULT_CHANNELS	LITERAL1
+TELEMETRY_LEN	LITERAL1
+cpuType	KEYWORD2
+cpuName	KEYWORD2
+isEsp32Cpu	KEYWORD2
+CpuType	LITERAL1
+CPU_UNKNOWN	LITERAL1
+CPU_AVR	LITERAL1
+CPU_TEENSY_40	LITERAL1
+CPU_TEENSY_LC	LITERAL1
+CPU_RP2040	LITERAL1
+CPU_ESP32	LITERAL1
+CPU_ESP32_S2	LITERAL1
+CPU_ESP32_S3	LITERAL1
+CPU_ESP32_C3	LITERAL1
+CPU_ESP32_C6	LITERAL1
+CPU_ESP32_H2	LITERAL1
