@@ -1,5 +1,9 @@
 #include <EkmfaRx.h>
+#if not defined(ARDUINO_ARCH_ESP32)
 #include <SoftRcPulseIn.h>
+#else
+#include <RculPWMRead.h>
+#endif
 
 #define EKMFA_RX_PIN                   2 // The pin SHALL support Interrupt Pin Change (All the pins of UNO are suitable)
 
@@ -9,7 +13,12 @@
 #error This sketch uses user-defined EKMFA durations: comment out the #define EKMFA_DEFAULT_DURATIONS in EkmfaRx.h!
 #endif
 
+#if not defined(ARDUINO_ARCH_ESP32)
 static SoftRcPulseIn RcSignal;
+#else
+static RculPWMRead RcSignal;
+#endif
+
 
 EKMFA_FCT_MAP_TBL(MyEkmfaMap) = {
                                           /* Fnct,Burst,Pos */
@@ -49,11 +58,12 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println(F("EKMFA RX Demo"));
-  EkmfaRxClass::setEepBaseAddr(0);
-  EkmfaRxClass::updateDurationMs(EKMFA_RX_RESET_DURATION_IDX,       200);
-  EkmfaRxClass::updateDurationMs(EKMFA_RX_BURST_DURATION_IDX,       50);
-  EkmfaRxClass::updateDurationMs(EKMFA_RX_INTER_BURST_DURATION_IDX, 50);
-  EkmfaRxClass::updateDurationMs(EKMFA_RX_LAST_RECALL_DURATION_IDX, 250);
+  EkmfaRx.setPreferencesNamespace("ekmfa1");
+  EkmfaRx.setEepBaseAddr(0);
+  EkmfaRxClass.updateDurationMs(EKMFA_RX_RESET_DURATION_IDX,       200);
+  EkmfaRxClass.updateDurationMs(EKMFA_RX_BURST_DURATION_IDX,       50);
+  EkmfaRxClass.updateDurationMs(EKMFA_RX_INTER_BURST_DURATION_IDX, 50);
+  EkmfaRxClass.updateDurationMs(EKMFA_RX_LAST_RECALL_DURATION_IDX, 250);
   RcSignal.attach(EKMFA_RX_PIN);
   EkmfaRx.begin(&RcSignal, RCUL_NO_CH, TBL_AND_ITEM_NB(MyEkmfaMap));
 }

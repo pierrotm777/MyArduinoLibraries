@@ -7,6 +7,9 @@
  http://p.loussouarn.free.fr/contact.html
  V1.0: (06/06/2021) initial release
  V1.1: (13/06/2022) Bug fixed when EkmfaRx driven manually from a transmitter stick (Commands in D area did not work)
+ V1.2: (03/05/2026) ESP32 compatibility added: Preferences used instead of EEPROM for custom durations
+ V1.3: (03/05/2026) ESP32 Preferences namespace is now configurable per EkmfaRxClass instance
+ V1.4: (03/05/2026) setPreferencesNamespace() kept available on AVR/Teensy as a no-op for portable sketches
 
  
  Francais: par RC Navy (2021)
@@ -15,6 +18,9 @@
  http://p.loussouarn.free.fr/contact.html
  V1.0: (06/06/2021) release initiale
  V1.1: (13/06/2022) Correction bug quand EkmfaRx etait pilote manuellement depuis le manche d'un emetteur (les commandes en zone D ne fonctionnaient pas)
+ V1.2: (03/05/2026) Ajout compatibilite ESP32: Preferences a la place de l'EEPROM pour les durees personnalisables
+ V1.3: (03/05/2026) Le namespace Preferences ESP32 est maintenant configurable par instance EkmfaRxClass
+ V1.4: (03/05/2026) setPreferencesNamespace() reste disponible sur AVR/Teensy comme fonction vide pour garder les sketches portables
 
 */
 
@@ -41,9 +47,6 @@ Pulse Width: <-------With=1500us-----><---Width=A/D_Width---><--With=1500us---><
                                Start of sequence                                                End of sequence
 */
 
-#ifndef EKMFA_DEFAULT_DURATIONS
-static uint16_t GlobEepBaseAddr = 0;
-#endif
 
 /* Private function prototypes */
 
@@ -73,10 +76,10 @@ EkmfaRxClass    EkmfaRx = EkmfaRxClass();
 #define EKMFA_RX_RAW_INTER_BURST_DURATION_MS  EKMFA_INV_CORRECTED_DURATION_MS(EKMFA_RX_DEFAULT_INTER_BURST_DURATION_MS)
 #define EKMFA_RX_RAW_LAST_RECALL_DURATION_MS  EKMFA_INV_CORRECTED_DURATION_MS(EKMFA_RX_DEFAULT_LAST_RECALL_DURATION_MS)
 #else
-#define EKMFA_RX_RAW_RESET_DURATION_MS        (EkmfaRxClass::getEepDurationMs(EKMFA_RX_RESET_DURATION_IDX))
-#define EKMFA_RX_RAW_BURST_DURATION_MS        (EkmfaRxClass::getEepDurationMs(EKMFA_RX_BURST_DURATION_IDX))
-#define EKMFA_RX_RAW_INTER_BURST_DURATION_MS  (EkmfaRxClass::getEepDurationMs(EKMFA_RX_INTER_BURST_DURATION_IDX))
-#define EKMFA_RX_RAW_LAST_RECALL_DURATION_MS  (EkmfaRxClass::getEepDurationMs(EKMFA_RX_LAST_RECALL_DURATION_IDX))
+#define EKMFA_RX_RAW_RESET_DURATION_MS        (getEepDurationMs(EKMFA_RX_RESET_DURATION_IDX))
+#define EKMFA_RX_RAW_BURST_DURATION_MS        (getEepDurationMs(EKMFA_RX_BURST_DURATION_IDX))
+#define EKMFA_RX_RAW_INTER_BURST_DURATION_MS  (getEepDurationMs(EKMFA_RX_INTER_BURST_DURATION_IDX))
+#define EKMFA_RX_RAW_LAST_RECALL_DURATION_MS  (getEepDurationMs(EKMFA_RX_LAST_RECALL_DURATION_IDX))
 #endif
 
 #define EKMFA_CORRECTED_DURATION_MS(Val)      ((Val) - ((Val) >> 2)) /* 25% lower than real values */
@@ -94,7 +97,33 @@ enum {EKMFA_RX_IDLE = 0, EKMFA_RX_CONFIRM_REPEAT, EKMFA_RX_CONFIRM_BURST, EKMFA_
 /* Constructor */
 EkmfaRxClass::EkmfaRxClass()
 {
+#if defined(ARDUINO_ARCH_ESP32)
+  /* Default namespace kept compatible with previous ESP32 version.
+     Call setPreferencesNamespace("ekmfa1"), setPreferencesNamespace("ekmfa2"), ...
+     before begin() if several EkmfaRxClass instances need independent stored timings. */
+  strncpy(PrefNamespace, "EkmfaRx", sizeof(PrefNamespace));
+  PrefNamespace[sizeof(PrefNamespace) - 1] = 0;
+#endif
+#ifndef EKMFA_DEFAULT_DURATIONS
+  EepBaseAddr = 0;
+#endif
+}
 
+
+void EkmfaRxClass::setPreferencesNamespace(const char *Namespace)
+{
+#if defined(ARDUINO_ARCH_ESP32)
+  if((Namespace == NULL) || (Namespace[0] == 0)) return;
+
+  /* ESP32 Preferences / NVS namespace is limited to 15 characters. */
+  strncpy(PrefNamespace, Namespace, sizeof(PrefNamespace));
+  PrefNamespace[sizeof(PrefNamespace) - 1] = 0;
+#else
+  /* AVR / Teensy EEPROM backend: no namespace concept.
+     The function intentionally exists as a no-op so the same sketch can compile
+     on ESP32 and on EEPROM-based targets. */
+  (void)Namespace;
+#endif
 }
 
 /* EkmfaTx.begin() shall be called in the setup() */
@@ -102,7 +131,7 @@ void EkmfaRxClass::begin(Rcul *Rcul, uint8_t Ch /*= RCUL_NO_CH*/, const uint8_t 
 {
 #if 1
   Ekmfa.MyMapInFlash = MyMapInFlash;
-  Ekmfa.MapSize      = min(MapSize, EKMFA_MAX_CMD_NB);
+  Ekmfa.MapSize      = (MapSize < EKMFA_MAX_CMD_NB) ? MapSize : EKMFA_MAX_CMD_NB;
   reassignRculSrc(Rcul, Ch);
 #else
   Ekmfa._Rcul        = Rcul;
@@ -352,7 +381,7 @@ void EkmfaRxClass::debugProtocol(uint8_t OffOn)
 #ifndef EKMFA_DEFAULT_DURATIONS
 void EkmfaRxClass::setEepBaseAddr(uint16_t EepBaseAddr)
 {
-    GlobEepBaseAddr = EepBaseAddr;
+    this->EepBaseAddr = EepBaseAddr;
 }
 
 uint16_t EkmfaRxClass::getEepTotalSize(void)
@@ -363,26 +392,48 @@ uint16_t EkmfaRxClass::getEepTotalSize(void)
 uint16_t EkmfaRxClass::getEepDurationMs(uint8_t WordIdx)
 {
     uint16_t EepAddr, EepWord;
-    
-    EepAddr = GlobEepBaseAddr + (WordIdx * 2);
+
+    if(WordIdx >= EKMFA_RX_EEP_WORD_NB) return(0);
+
+#if defined(ARDUINO_ARCH_ESP32)
+    char Key[16];
+    snprintf(Key, sizeof(Key), "b%u_%u", (unsigned)EepBaseAddr, (unsigned)WordIdx);
+    Preferences Prefs;
+    Prefs.begin(PrefNamespace, true);
+    EepWord = Prefs.getUShort(Key, 0);
+    Prefs.end();
+#else
+    EepAddr = EepBaseAddr + (WordIdx * 2);
 #if not defined(ARDUINO_ARCH_RP2040)
     EepWord = (uint16_t)eeprom_read_word((const uint16_t *)(uint16_t)(EepAddr));
 #else
-	EepWord = EEPROM.read((uint16_t)(EepAddr));
-#endif    
+    EepWord = (uint16_t)EEPROM.read((uint16_t)(EepAddr));
+#endif
+#endif
     return(EepWord);
 }
 
 void EkmfaRxClass::updateDurationMs(uint8_t WordIdx, uint16_t WordValue)
 {
     uint16_t EepAddr;
-    
-    EepAddr = GlobEepBaseAddr + (WordIdx * 2);
+
+    if(WordIdx >= EKMFA_RX_EEP_WORD_NB) return;
+
+#if defined(ARDUINO_ARCH_ESP32)
+    char Key[16];
+    snprintf(Key, sizeof(Key), "b%u_%u", (unsigned)EepBaseAddr, (unsigned)WordIdx);
+    Preferences Prefs;
+    Prefs.begin(PrefNamespace, false);
+    Prefs.putUShort(Key, WordValue);
+    Prefs.end();
+#else
+    EepAddr = EepBaseAddr + (WordIdx * 2);
 #if not defined(ARDUINO_ARCH_RP2040)
     eeprom_update_word((uint16_t *)(uint16_t)(EepAddr), WordValue);
 #else
-	EEPROM.update((uint16_t)(EepAddr), WordValue);
-	EEPROM.commit();
+    EEPROM.update((uint16_t)(EepAddr), WordValue);
+    EEPROM.commit();
+#endif
 #endif
 }
 #endif

@@ -17,7 +17,7 @@ Francais: par RC Navy (2012-2022)
 
 
 #define RculPWMRead_IN_VERSION                    1
-#define RculPWMRead_IN_REVISION                   0
+#define RculPWMRead_IN_REVISION                   1
 
 typedef struct{
   uint8_t
@@ -30,7 +30,11 @@ class RculPWMRead : public Rcul
 {
   public:
     RculPWMRead(uint8_t Inv = 0);
-	static void       RculPWMReadInterrupt0ISR(void);
+    static void       RculPWMReadInterrupt0ISR(void);
+#if defined(ESP32)
+    static void IRAM_ATTR RculPWMReadInterruptArgISR(void *Arg);
+    void IRAM_ATTR        handleInterrupt(void);
+#endif
     int8_t            attach(uint8_t Pin, uint16_t PulseMin_us = 600, uint16_t PulseMax_us = 2400);
     void              detach(void);
     uint8_t           available(uint8_t ClientIdx = 7);
@@ -42,7 +46,8 @@ class RculPWMRead : public Rcul
     virtual uint8_t   RculIsSynchro(uint8_t ClientIdx = RCUL_DEFAULT_CLIENT_IDX);
     virtual uint16_t  RculGetWidth_us(uint8_t Ch);
     virtual void      RculSetWidth_us(uint16_t Width_us, uint8_t Ch = RCUL_NO_CH);
-    private:
+  private:
+    void              handleInterruptFromState(uint8_t PinState, uint32_t NowUs);
     class  RculPWMRead *prev;
     static RculPWMRead *last;
     uint8_t           _Pin;
@@ -53,6 +58,7 @@ class RculPWMRead : public Rcul
     volatile uint16_t _Width_us;
     volatile uint8_t  _Available;
     uint8_t           _LastTimeStampMs;
+    volatile uint8_t  _LastPinState;
 };
 
 /*******************************************************/
