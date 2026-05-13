@@ -1,63 +1,71 @@
-## TMRpcmSpeed32u4 v1.0.2
+# TMRpcmSpeed32u4
 
-# TMRpcmSpeed32u4 v1.0.0
+Lecteur audio simple pour Arduino Pro Micro / Leonardo / ATmega32u4.
 
-API and “philosophy” compatible with **TMRpcm / TMRpcmSpeed**, but adapted for **ATmega32u4** (Arduino **Pro Micro / Micro / Leonardo**) with audio on **D6**.
+## Version v1.3
 
-## Hardware / pins
-- **Audio out:** D6 (OC4D / Timer4) **mandatory**
-- **SD CS:** configurable (examples use D10)
-- SPI uses ICSP pins on 32u4 boards.
+Cette version garde le nom de la librairie, le nom de classe et l'API existante :
 
-## WAV format supported
-- **PCM unsigned 8-bit**
-- **Mono**
-- Recommended sample rate: **8–16 kHz** (works up to ~22 kHz)
-
-## Basic example
 ```cpp
-#include <SPI.h>
-#include <SD.h>
-#include <TMRpcm.h>
+#include <TMRpcmSpeed32u4.h>
+TMRpcmSpeed32u4 audio;
 
-TMRpcm audio;
-
-void setup() {
-  SD.begin(10);
-  audio.speakerPin = 6;      // fixed on 32u4
-  audio.setVolume(5);        // 0..7 (like TMRpcm style)
-  audio.play("IDLE.WAV");
-}
-
-void loop() {
-  audio.update();            // must be called often
-}
+audio.begin();
+audio.play("/DSL-V12.STA");
+audio.update();
+audio.setPlaybackRate(1.0f);
+audio.stop();
 ```
 
-## Speed / pitch control (TMRpcmSpeed-like)
-- `audio.setPlaybackRate(rate);`  // 1.0 = normal, >1 faster/higher, <1 slower/lower
-- `audio.speedUp();` / `audio.speedDown();`
-- `audio.setSpeedFromPulseUs(us);` mapping 1000–2000 µs to a rate range
+## Corrections importantes
 
-See `examples/rc_pwm_speed/rc_pwm_speed.ino`.
+- Support des vrais fichiers WAV renommés en `.STA` ou `.IDL`.
+- Accepte maintenant :
+  - PCM 8-bit mono
+  - PCM 8-bit stéréo, mixé en mono
+  - PCM 16-bit mono, converti en PWM 8-bit
+  - PCM 16-bit stéréo, mixé en mono puis converti en PWM 8-bit
+- Buffer augmenté à 512 octets pour limiter les underruns.
+- Parsing RIFF/WAV amélioré : chunks `fmt `, `data`, chunks inconnus, alignement RIFF.
+- Ajout de `getLastError()` pour diagnostiquer pourquoi un fichier ne démarre pas.
+- Ajout de `getWavBitsPerSample()` et `getWavChannels()` pour le debug.
 
-## Notes
-This implementation uses:
-- **Timer4** for PWM output on **D6 (OCR4D)**
-- **Timer1** compare interrupt for sample timing (changed dynamically for speed control)
+## Timers
 
+- Timer4 reste utilisé pour la sortie PWM sur D6 / OC4D.
+- La cadence d'échantillonnage est générée par Timer1 ou Timer3.
+- Par défaut : Timer3.
 
-
-## Timer selection (audio ISR)
-
-By default the library uses **Timer1** for the audio sample-rate interrupt.
-If you need Timer1 for something else (e.g. a ~113kHz mister on D9), you can compile the library to use **Timer3** instead.
-
-In your sketch, before including the header:
+Dans ton sketch actuel, tu as déjà :
 
 ```cpp
 #define TMRPCM_32U4_AUDIO_TIMER 3
 #include <TMRpcmSpeed32u4.h>
 ```
 
-Valid values: `1` (Timer1) or `3` (Timer3).
+C'est conservé et recommandé.
+
+## Format WAV conseillé pour la meilleure qualité
+
+Même si la lib accepte le 16-bit/stéréo, le meilleur format pour un Pro Micro reste :
+
+- PCM non compressé
+- mono
+- 8-bit ou 16-bit
+- 11025 Hz ou 16000 Hz
+- éviter 44100 Hz, trop lourd pour SD + AVR + variation de pitch
+
+## Debug conseillé dans ton sketch
+
+Après `audio.play(fn);`, tu peux faire :
+
+```cpp
+if (!audio.play(fn)) {
+  Serial.print("audio.play FAIL: ");
+  Serial.println(audio.getLastError());
+} else {
+  Serial.print("WAV Hz="); Serial.print(audio.getWavSampleRate());
+  Serial.print(" bits="); Serial.print(audio.getWavBitsPerSample());
+  Serial.print(" ch="); Serial.println(audio.getWavChannels());
+}
+```

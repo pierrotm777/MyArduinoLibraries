@@ -4,10 +4,10 @@
 // This sketch can work with ATtiny and Arduino UNO, MEGA, etc...
 // This example code is in the public domain.
 
-#include <PwmGen.h> 
+#include <RculPWMGen.h> 
 #include <Rcul.h>
  
-PwmGen myservo;  // create servo object to control a servo 
+RculPWMGen myservo;  // create servo object to control a servo 
                         // a maximum of eight servo objects can be created 
 #define SERVO_PIN         3
 

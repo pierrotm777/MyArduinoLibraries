@@ -1,107 +1,83 @@
 #include <RculPWMGen.h>
-/*
- Update 01/03/2013: add support for Digispark (http://digistump.com): automatic Timer selection (RC Navy: p.loussouarn.free.fr)
- Update 19/08/2014: usage with write_us and read_us fixed
- Update 06/04/2015: Rcul support added (allows to create a virtual serial port over a PPM channel)
- Update 03/06/2015: add support for dynamic object creation/destruction
-                   (createInstance, destroyInstance, createdInstanceNbmethods, RculPWMGenById and getIdByPin methods added)
- Update 15/12/2018: support for (optional) inverted pulse added, micros() used rather than millis() for period
- 
- English: by RC Navy (2012) 
- =======
- <RculPWMGen>: a library mainly based on the <SoftwareServo> library, but with a better pulse generation to limit jitter.
- It supports the same methods as <SoftwareServo>.
- It also support Pulse Width order given in microseconds. The current Pulse Width can also be read in microseconds.
- The refresh method can admit an optionnal argument (force). If RculPWMGen::refresh(1) is called, the refresh is forced even if 20 ms are not elapsed.
- The refresh() method returns 1 if refresh done (can be used for synchro and/or for 20ms timer).
- http://p.loussouarn.free.fr
 
- Francais: par RC Navy (2012)
- ========
- <RculPWMGen>: une librairie majoritairement basee sur la librairie <SoftwareServo>, mais avec une meilleure generation des impulsions pour limiter la gigue.
- Elle supporte les memes methodes que <SoftwareServo>.
- Elle supporte egalement une consigne de largeur d'impulsion passee en microseconde. La largeur de l'impulsion courante peut egalement etre lue en microseconde.
- La methode refresh peut admettre un parametre optionnel (force). Si RculPWMGen::resfresh(1) est appelee, le refresh est force meme si 20 ms ne se sont pas ecoulee.
- La methode refresh() retourne 1 si refresh effectue (peut etre utilise pour synhro et/ou 20ms timer).
- http://p.loussouarn.free.fr
-*/
+RculPWMGen *RculPWMGen::first = NULL;
 
-/* Automatic Timer selection (at compilation time) */
-
-//#define SOFT_RC_PULSE_OUT_TCNT TCNT0 //For arduino standard core of UNO/MEGA, etc
-#include <elapsedMillis.h>// for try to replace TCNT0
-elapsedMicros SOFT_RC_PULSE_OUT_TCNT;
-
-RculPWMGen *RculPWMGen::first;
-
-typedef struct{
+typedef struct {
   uint8_t
-    Total:       4,
-    Dynamically: 4;
-}ObjectCreatedSt_t;
+    Total       : 4,
+    Dynamically : 4;
+} RculPWMGenObjectCreatedSt_t;
 
-static ObjectCreatedSt_t ObjectCreated = {0, 0};
+static RculPWMGenObjectCreatedSt_t ObjectCreated = {0, 0};
 
-#define NO_ANGLE                           (0xff)
-#define NOT_ATTACHED                       (0xff)
+#define RCUL_PWM_GEN_NO_ANGLE      (0xff)
+#define RCUL_PWM_GEN_NOT_ATTACHED  (0xff)
+#define RCUL_PWM_GEN_DEFAULT_MIN_US 544
+#define RCUL_PWM_GEN_DEFAULT_MAX_US 2400
+#define RCUL_PWM_GEN_DEFAULT_US     1500
 
 RculPWMGen::RculPWMGen()
 {
-  pin    = NOT_ATTACHED;
-  pulse0 = 0;
-  next   = first;
-  first  = this;
+  pin      = RCUL_PWM_GEN_NOT_ATTACHED;
+  angle    = RCUL_PWM_GEN_NO_ANGLE;
+  pulse_us = RCUL_PWM_GEN_DEFAULT_US;
+  min_us   = RCUL_PWM_GEN_DEFAULT_MIN_US;
+  max_us   = RCUL_PWM_GEN_DEFAULT_MAX_US;
+  Bool.ItMasked = 0;
+  Bool.Inverted = 0;
+  next     = first;
+  first    = this;
   ObjectCreated.Total++;
 }
 
 void RculPWMGen::setMinimumPulse(uint16_t t)
 {
-    min16 = t / 16;
+  min_us = t;
+  if (pulse_us < min_us) pulse_us = min_us;
 }
 
 void RculPWMGen::setMaximumPulse(uint16_t t)
 {
-    max16 = t / 16;
+  max_us = t;
+  if (pulse_us > max_us) pulse_us = max_us;
 }
 
 int8_t RculPWMGen::createInstance(void)
 {
-  int8_t Ret = -1; /* In case of failure */
-  RculPWMGen *p;
-  
-  if(ObjectCreated.Total < SOFT_RC_PULSE_OUT_INSTANCE_MAX_NB)
+  int8_t Ret = -1;
+
+  if (ObjectCreated.Total < RCUL_PWM_GEN_INSTANCE_MAX_NB)
   {
-    p = new RculPWMGen; /* new calls the constructor which increments ObjectCreated */
-    if(p)
+    RculPWMGen *p = new RculPWMGen;
+    if (p)
     {
       ObjectCreated.Dynamically++;
       Ret = ObjectCreated.Total - 1;
     }
   }
-  return(Ret);
+  return Ret;
 }
 
 uint8_t RculPWMGen::createdInstanceNb(void)
 {
-  return(ObjectCreated.Total);
+  return ObjectCreated.Total;
 }
 
 uint8_t RculPWMGen::destroyInstance(uint8_t ObjIdx)
 {
-  int8_t Ret = 0;
-  RculPWMGen *This;
+  uint8_t Ret = 0;
 
-  if((ObjIdx >= (ObjectCreated.Total - ObjectCreated.Dynamically)) && (ObjIdx < ObjectCreated.Total))
+  if ((ObjIdx >= (ObjectCreated.Total - ObjectCreated.Dynamically)) && (ObjIdx < ObjectCreated.Total))
   {
-    This = RculPWMGenById(ObjIdx);
-    if(!This->attached())
+    RculPWMGen *This = RculPWMGenById(ObjIdx);
+    if (This && !This->attached())
     {
-      for ( RculPWMGen **p = &first; *p != 0; p = &((*p)->next) )
+      for (RculPWMGen **p = &first; *p != NULL; p = &((*p)->next))
       {
-        if ( *p == This )
+        if (*p == This)
         {
           *p = This->next;
-          This->next = 0;
+          This->next = NULL;
           delete(This);
           ObjectCreated.Dynamically--;
           ObjectCreated.Total--;
@@ -111,89 +87,80 @@ uint8_t RculPWMGen::destroyInstance(uint8_t ObjIdx)
       }
     }
   }
-  return(Ret);
+  return Ret;
 }
 
 RculPWMGen *RculPWMGen::RculPWMGenById(uint8_t ObjIdx)
 {
-  int8_t Idx;
-  RculPWMGen *p;
-  
-  if(ObjIdx < ObjectCreated.Total)
+  if (ObjIdx < ObjectCreated.Total)
   {
-    Idx = ObjectCreated.Total - ObjIdx -1;
-    if(Idx >= 0)
+    int8_t Idx = ObjectCreated.Total - ObjIdx - 1;
+    if (Idx >= 0)
     {
-      p = first;
-      for(uint8_t i = 0; i < Idx ;i++)
-      {
-        p = p->next;
-      }
-      return(p);
+      RculPWMGen *p = first;
+      for (uint8_t i = 0; (i < Idx) && p; i++) p = p->next;
+      return p;
     }
   }
-  return(NULL);  
-}  
+  return NULL;
+}
 
 int8_t RculPWMGen::getIdByPin(uint8_t Pin)
 {
-  int8_t Idx =  0, Id = -1;
-  RculPWMGen *p;
-  
-  for ( p = first; p != 0; p = p->next )
+  int8_t Idx = 0;
+  int8_t Id  = -1;
+
+  for (RculPWMGen *p = first; p != NULL; p = p->next)
   {
     Idx++;
-    if( p->pin == Pin)
+    if (p->pin == Pin)
     {
       Id = ObjectCreated.Total - Idx;
       break;
     }
   }
-  return(Id);
+  return Id;
 }
 
 uint8_t RculPWMGen::attach(uint8_t pinArg, uint8_t Inverted /*= 0*/)
 {
-  pin    = pinArg;
-  angle  = NO_ANGLE;
-  min16  = 34;
-  max16  = 150;
-  Bool.Inverted = Inverted;
-  digitalWrite(pin, LOW ^ Bool.Inverted);
+  pin      = pinArg;
+  angle    = RCUL_PWM_GEN_NO_ANGLE;
+  min_us   = RCUL_PWM_GEN_DEFAULT_MIN_US;
+  max_us   = RCUL_PWM_GEN_DEFAULT_MAX_US;
+  pulse_us = RCUL_PWM_GEN_DEFAULT_US;
+  Bool.Inverted = Inverted ? 1 : 0;
+
   pinMode(pin, OUTPUT);
-  return (1);
+  writePin(pin, inactiveLevel());
+  return 1;
 }
 
 void RculPWMGen::detach()
 {
-  pin = NOT_ATTACHED;
+  if (pin != RCUL_PWM_GEN_NOT_ATTACHED)
+  {
+    writePin(pin, inactiveLevel());
+  }
+  pin = RCUL_PWM_GEN_NOT_ATTACHED;
 }
 
 void RculPWMGen::write(int angleArg)
 {
   if (angleArg < 0)   angleArg = 0;
   if (angleArg > 180) angleArg = 180;
-  angle = angleArg;
-  // bleh, have to use longs to prevent overflow, could be tricky if always a 16MHz clock, but not true
-  // That 64L on the end is the TCNT0 prescaler, it will need to change if the clock's prescaler changes,
-  // but then there will likely be an overflow problem, so it will have to be handled by a human.
-#ifdef MS_TIMER_TICK_EVERY_X_CYCLES
-  pulse0 = (min16 * 16L * clockCyclesPerMicrosecond() + (max16 - min16) * (16L * clockCyclesPerMicrosecond()) * angle / 180L) / MS_TIMER_TICK_EVERY_X_CYCLES;
-#else
-  pulse0 = (min16 * 16L * clockCyclesPerMicrosecond() + (max16 - min16) * (16L * clockCyclesPerMicrosecond()) * angle / 180L) / 64L;
-#endif
+
+  angle = (uint8_t)angleArg;
+  pulse_us = (uint16_t)map(angleArg, 0, 180, min_us, max_us);
 }
 
 void RculPWMGen::write_us(uint16_t PulseWidth_us)
 {
-  if ( PulseWidth_us < (min16 * 16)) PulseWidth_us = (min16 * 16);
-  if ( PulseWidth_us > (max16 * 16)) PulseWidth_us = (max16 * 16);
-#ifdef MS_TIMER_TICK_EVERY_X_CYCLES
-  pulse0 = (PulseWidth_us * clockCyclesPerMicrosecond()) / MS_TIMER_TICK_EVERY_X_CYCLES;
-#else
-  pulse0 = (PulseWidth_us * clockCyclesPerMicrosecond()) / 64L;
-#endif
-  angle = map(PulseWidth_us, min16 * 16, max16 * 16, 0, 180);
+  if (PulseWidth_us < min_us) PulseWidth_us = min_us;
+  if (PulseWidth_us > max_us) PulseWidth_us = max_us;
+
+  pulse_us = PulseWidth_us;
+  angle = (uint8_t)map(PulseWidth_us, min_us, max_us, 0, 180);
 }
 
 uint8_t RculPWMGen::read()
@@ -203,71 +170,67 @@ uint8_t RculPWMGen::read()
 
 uint16_t RculPWMGen::read_us()
 {
-#ifdef MS_TIMER_TICK_EVERY_X_CYCLES
-  return((pulse0 * MS_TIMER_TICK_EVERY_X_CYCLES) / clockCyclesPerMicrosecond());
-#else
-  return((pulse0 * 64L) / clockCyclesPerMicrosecond());
-#endif
+  return pulse_us;
 }
 
 uint8_t RculPWMGen::attached()
 {
-  return(pin != NOT_ATTACHED);
+  return (pin != RCUL_PWM_GEN_NOT_ATTACHED);
 }
 
 /* Begin of Rcul support */
 uint8_t RculPWMGen::RculIsSynchro(uint8_t ClientIdx /*= RCUL_DEFAULT_CLIENT_IDX*/)
 {
-  ClientIdx = ClientIdx; /* Hope multi-clients will be never used! Otherwise, this does not work! */
-  return(refresh());
+  (void)ClientIdx;
+  return refresh();
 }
 
 void RculPWMGen::RculSetWidth_us(uint16_t Width_us, uint8_t Ch /*= RCUL_NO_CH*/)
 {
-  Ch = Ch; /* To avoid a warning at compilation time */
+  (void)Ch;
   write_us(Width_us);
 }
 
 uint16_t RculPWMGen::RculGetWidth_us(uint8_t Ch)
 {
-  Ch = Ch; /* To avoid a compilation warning */
-  return(0);
+  (void)Ch;
+  return read_us();
 }
 /* End of Rcul support */
 
-uint8_t RculPWMGen::refresh(uint8_t force /* = false */)
+uint8_t RculPWMGen::refresh(uint8_t force /*= 0*/)
 {
-  uint8_t  RefreshDone = 0;
-  uint8_t  count = 0, i = 0;
-  uint16_t base = 0;
-  RculPWMGen *p;
   static uint32_t lastRefresh = 0;
-  uint32_t m = micros();
-  
-  if(!force)
+  uint32_t now = micros();
+
+  if (!force)
   {
-    // if we haven't wrapped millis, and 20ms have not passed, then don't do anything
-    if ( (m - lastRefresh) < 20000UL ) return(RefreshDone);
+    if ((uint32_t)(now - lastRefresh) < 20000UL) return 0;
   }
-  RefreshDone = 1; //Ok: Refresh will be performed
-  lastRefresh = m;
 
-  for ( p = first; p != 0; p = p->next ) if ( p->pin != NOT_ATTACHED ) count++;
-  if ( count == 0 ) return(RefreshDone);
+  lastRefresh = now;
 
-  // gather all the RculPWMGens in an array
-  RculPWMGen *s[count];
-  for ( p = first; p != 0; p = p->next ) if ( p->pin != NOT_ATTACHED ) s[i++] = p;
+  uint8_t count = 0;
+  for (RculPWMGen *p = first; p != NULL; p = p->next)
+  {
+    if (p->attached() && (count < RCUL_PWM_GEN_INSTANCE_MAX_NB)) count++;
+  }
+  if (count == 0) return 1;
 
-  // bubblesort the RculPWMGens by pulse time, ascending order
-  s[0]->Bool.ItMasked = 0;
-  for(;;)
+  RculPWMGen *s[RCUL_PWM_GEN_INSTANCE_MAX_NB];
+  uint8_t i = 0;
+  for (RculPWMGen *p = first; p != NULL; p = p->next)
+  {
+    if (p->attached() && (i < RCUL_PWM_GEN_INSTANCE_MAX_NB)) s[i++] = p;
+  }
+
+  // Tri par largeur d'impulsion croissante.
+  for (;;)
   {
     uint8_t moved = 0;
-    for ( i = 1; i < count; i++ )
+    for (i = 1; i < count; i++)
     {
-      s[i]->Bool.ItMasked = 0;
-      if ( s[i]->pulse0 < s[i - 1]->pulse0 )
+      if (s[i]->pulse_us < s[i - 1]->pulse_us)
       {
         RculPWMGen *t = s[i];
         s[i] = s[i - 1];
@@ -275,65 +238,38 @@ uint8_t RculPWMGen::refresh(uint8_t force /* = false */)
         moved = 1;
       }
     }
-    if ( !moved ) break;
+    if (!moved) break;
   }
-  for ( i = 1; i < count; i++ )
-  {
-    if ( abs(s[i]->pulse0 - s[i - 1]->pulse0) <= 5)
-    {
-      s[i]->Bool.ItMasked = 1; /* 2 consecutive Pulses are close each other, so do not unmask interrupts between Pulses */
-    }
-  }
-  // turn on all the pins
-  // Note the timing error here... when you have many RculPWMGens going, the
-  // ones at the front will get a pulse that is a few microseconds too long.
-  // Figure about 4uS/RculPWMGen after them. This could be compensated, but I feel
-  // it is within the margin of error of software RculPWMGens that could catch
-  // an extra interrupt handler at any time.
+
+  // Debut des impulsions: toutes les sorties actives quasiment en meme temps.
   noInterrupts();
-  for ( i = 0; i < count; i++ ) digitalWrite( s[i]->pin, 1 ^ s[i]->Bool.Inverted );
+  for (i = 0; i < count; i++) s[i]->writePin(s[i]->pin, s[i]->activeLevel());
   interrupts();
-  uint8_t start = SOFT_RC_PULSE_OUT_TCNT;
-  uint8_t now = start;
-  uint8_t last = now;
 
-  // Now wait for each pin's time in turn..
-  for ( i = 0; i < count; i++ )
+  uint32_t start = micros();
+
+  for (i = 0; i < count; i++)
   {
-    uint16_t go = start + s[i]->pulse0;
-#ifndef MS_TIMER_TICK_EVERY_X_CYCLES
-    uint16_t it = go - 4; /* 4 Ticks is OK for UNO @ 16MHz with default prescaler*/ /* Mask Interruptions just before setting down the pin */
-#else
-    uint16_t it = go - max(4, (256 / MS_TIMER_TICK_EVERY_X_CYCLES)); /* 4 Ticks is OK for UNO @ 16MHz */ /* Mask Interruptions just before setting down the pin */
-#endif
-    // loop until we reach or pass 'go' time: this is a blocking loop (max 2400us) except for non masked ISR (between edges)
-    for (;;)
+    uint16_t target_us = s[i]->pulse_us;
+
+    while ((uint32_t)(micros() - start) < target_us)
     {
-      now = SOFT_RC_PULSE_OUT_TCNT;
-      if ( now < last ) base += 256;
-      last = now;
-      if( !s[i]->Bool.ItMasked )
-      {
-        if( base + now > it)
-        {
-            noInterrupts();
-            s[i]->Bool.ItMasked = 1;
-        }
-      }
-      if ( base + now > go )
-      {
-        digitalWrite( s[i]->pin, 0 ^ s[i]->Bool.Inverted);
-        if( (i + 1) < count )
-        {
-            if( !s[i + 1]->Bool.ItMasked )
-            {
-                interrupts();
-            }
-        }else interrupts();
-        break;
-      }
+      // Attente courte. Les interruptions restent autorisees pour limiter l'impact
+      // sur ESP32/WiFi/Teensy. La precision depend donc de la charge CPU.
+      yield();
     }
+
+    noInterrupts();
+    s[i]->writePin(s[i]->pin, s[i]->inactiveLevel());
+
+    // Coupe egalement les sorties qui ont exactement la meme largeur ou presque.
+    while (((i + 1) < count) && ((int32_t)s[i + 1]->pulse_us - (int32_t)target_us <= 2))
+    {
+      i++;
+      s[i]->writePin(s[i]->pin, s[i]->inactiveLevel());
+    }
+    interrupts();
   }
 
-  return(RefreshDone);
+  return 1;
 }

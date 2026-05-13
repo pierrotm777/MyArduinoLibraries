@@ -1,0 +1,8 @@
+PmSoftSbusRx	KEYWORD1
+PmSoftSbusRxClass	KEYWORD1
+begin	KEYWORD2
+process	KEYWORD2
+width_us	KEYWORD2
+raw	KEYWORD2
+validCount	KEYWORD2
+rejectCount	KEYWORD2

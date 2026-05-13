@@ -31,12 +31,11 @@ setMaximumPulse	KEYWORD2
 definitImpulsionMaximum	KEYWORD2
 refresh	KEYWORD2
 rafraichit	KEYWORD2
+RculIsSynchro	KEYWORD2
+RculSetWidth_us	KEYWORD2
+RculGetWidth_us	KEYWORD2
 createInstance	KEYWORD2
 createdInstanceNb	KEYWORD2
-softRcPulseOutById	KEYWORD2
-getIdByPin	KEYWORD2
 destroyInstance	KEYWORD2
-
-#######################################
-# Constants (LITERAL1)
-#######################################
+RculPWMGenById	KEYWORD2
+getIdByPin	KEYWORD2

@@ -11,7 +11,12 @@ TMRpcmSpeed32u4 audio;
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  
+  // Timeout USB Serial (ne bloque pas sans USB)
+  uint32_t t0 = millis();
+  while (!Serial && (millis() - t0 < 1500)) {
+    delay(1);
+  }
 
   Serial.println("Minimal engine test");
 
