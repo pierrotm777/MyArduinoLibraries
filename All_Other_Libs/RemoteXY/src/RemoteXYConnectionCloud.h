@@ -3,38 +3,49 @@
 
 #include "RemoteXYDebugLog.h"
 #include "RemoteXYConnection.h"
+#include "RemoteXYCloudServer.h"
 #include "RemoteXYThread.h"
 
 #define REMOTEXY_CLOUDCLIENT_RETRY_TIMEOUT 20000
 
-class CRemoteXYConnectionCloud: public CRemoteXYConnectionComm, CRemoteXYCloudClientAvailableListener { 
+class CRemoteXYConnectionCloud: public CRemoteXYConnectionNet { 
   public:
   uint16_t port;
   CRemoteXYCloudServer * cloudServer;
   const char * cloudHost; 
   const char * cloudToken;
-  CRemoteXYData * data;
+  CRemoteXYGuiData * data;
   CRemoteXYClient * client;
   uint32_t timeOut;
     
   public:
-  CRemoteXYConnectionCloud (CRemoteXYComm * _comm, const char * _cloudHost, uint16_t _port, const char * _cloudToken) : CRemoteXYConnectionComm (_comm) {
+  CRemoteXYConnectionCloud (CRemoteXYNet * _net, const char * _cloudHost, uint16_t _port, const char * _cloudToken) : CRemoteXYConnectionNet (_net) {
     port = _port;
     cloudHost = _cloudHost;
     cloudToken = _cloudToken;
+    client = _net->newClient ();
   }
   
   public:
-  void init (CRemoteXYData * _data) override {
+  void init (CRemoteXYGuiData * _data) override {
     data = _data;
-    cloudServer = new CRemoteXYCloudServer (data, cloudToken, this);
-    client = comm->newClient ();
-    timeOut = -REMOTEXY_CLOUDCLIENT_RETRY_TIMEOUT;
+    cloudServer = new CRemoteXYCloudServer (data, this, cloudToken);
+    timeOut = millis() - REMOTEXY_CLOUDCLIENT_RETRY_TIMEOUT;
+  }
+  
+  public:
+  uint8_t configured () override {
+    if (net->configured ()) {
+      if (cloudServer->configured ()) {
+        return 1;
+      }
+    }
+    return 0;  
   }
   
   void handler () override {
     
-    if (comm->configured ()) {
+    if (net->configured ()) {
       if (cloudServer->running ()) {
         cloudServer->handler();     
         timeOut = millis();      
@@ -42,58 +53,40 @@ class CRemoteXYConnectionCloud: public CRemoteXYConnectionComm, CRemoteXYCloudCl
       else { // not serverRunning
         if (millis() - timeOut > REMOTEXY_CLOUDCLIENT_RETRY_TIMEOUT) {
 #if defined(REMOTEXY__DEBUGLOG)
-          RemoteXYDebugLog.write ("Connecting to cloud: ");
+          RemoteXYDebugLog.write (F("Connecting to cloud: "));
           RemoteXYDebugLog.writeAdd (cloudHost);
-          RemoteXYDebugLog.writeAdd (" ");
+          RemoteXYDebugLog.writeAdd (F(" "));
           RemoteXYDebugLog.writeAdd (port);
-          RemoteXYDebugLog.writeAdd (" ..");
-#endif 
+          RemoteXYDebugLog.writeAdd (F(" .."));
+#endif     
           if (client->connect (cloudHost, port)) {
 #if defined(REMOTEXY__DEBUGLOG)
-            RemoteXYDebugLog.write ("Cloud server connected");
+            RemoteXYDebugLog.write (F("Cloud server connected"));
 #endif 
             cloudServer->begin (client);            
           }        
 #if defined(REMOTEXY__DEBUGLOG)
           else {
-            RemoteXYDebugLog.write ("Cloud server not available");
+            RemoteXYDebugLog.write (F("Cloud server not available"));
           }
 #endif     
           timeOut = millis();   
         }
       }
     }
-    else cloudServer->stop ();
-    if (!cloudServer->running ()) {
-      if (client->connected ()) {
-        client->stop ();
+    else {
+      cloudServer->stop ();
+      timeOut = millis() - REMOTEXY_CLOUDCLIENT_RETRY_TIMEOUT;
+    }
+    
+    if (!cloudServer->running ()) { 
+      if (client) {  
+        if (client->connected ()) {
+          client->stop ();
+        } 
       }
     }
   }  
-  
-  void clientAvailable (CRemoteXYWireCloud * cloudWire) override {
-    if (CRemoteXYThread::runningCount (data) < REMOTEXY_MAX_CLIENTS) { 
-      CRemoteXYThread::startThread (data, this, cloudWire, 1);  
-    }
-    else {
-      cloudWire->stop ();
-#if defined(REMOTEXY__DEBUGLOG)
-      RemoteXYDebugLog.write ("Client reject");
-#endif           
-    }
-  
-  }
-
-  
-  void handleWire (CRemoteXYWire * wire) override {  
-    if (cloudServer->running () && comm->configured ()) wire->handler (); 
-    else stopThreadListener (wire);
-  }
-  
-  void stopThreadListener (CRemoteXYWire * wire) override {
-    wire->stop ();
-  }
-  
 
   
 };

@@ -2,7 +2,7 @@
 //    FILE: PCF8574.cpp
 //  AUTHOR: Rob Tillaart
 //    DATE: 02-febr-2013
-// VERSION: 0.4.1
+// VERSION: 0.4.5
 // PURPOSE: Arduino library for PCF8574 - 8 channel I2C IO expander
 //     URL: https://github.com/RobTillaart/PCF8574
 //          http://forum.arduino.cc/index.php?topic=184800
@@ -10,16 +10,14 @@
 
 #include "PCF8574.h"
 
+#ifndef I2C_BUFFER_LENGTH
+#define I2C_BUFFER_LENGTH    (32)
+#endif
+
 
 PCF8574::PCF8574(const uint8_t deviceAddress, TwoWire *wire)
-{
-  _address    = deviceAddress;
-  _wire       = wire;
-  _dataIn     = 0;
-  _dataOut    = 0xFF;
-  _buttonMask = 0xFF;
-  _error      = PCF8574_OK;
-}
+: _address {deviceAddress}, _wire {wire}
+{}
 
 
 bool PCF8574::begin(uint8_t value)
@@ -36,19 +34,11 @@ bool PCF8574::isConnected()
   return ( _wire->endTransmission() == 0);
 }
 
-
 bool PCF8574::setAddress(const uint8_t deviceAddress)
 {
   _address = deviceAddress;
   return isConnected();
 }
-
-
-uint8_t PCF8574::getAddress()
-{
-  return _address;
-}
-
 
 //  removed _wire->beginTransmission(_address);
 //  with    @100 KHz -> 265 micros()
@@ -104,6 +94,48 @@ void PCF8574::write(const uint8_t pin, const uint8_t value)
     _dataOut |= (1 << pin);
   }
   write8(_dataOut);
+}
+
+
+//  experimental 0.4.4
+bool PCF8574::writeArray(uint8_t *array, uint8_t size)
+{
+  if (size > (I2C_BUFFER_LENGTH - 1))
+  {
+    _error = PCF8574_BUFFER_LENGTH_ERROR;
+    return false;
+  }
+  yield();
+  _wire->beginTransmission(_address);
+  for (uint8_t i = 0; i < size; i++)
+  {
+    _wire->write(array[i]);
+  }
+  _error = _wire->endTransmission();
+  _dataOut = array[size - 1];
+  return true;
+}
+
+
+bool PCF8574::readArray(uint8_t *array, uint8_t size)
+{
+  if (size > (I2C_BUFFER_LENGTH - 1))
+  {
+    _error = PCF8574_BUFFER_LENGTH_ERROR;
+    return false;
+  }
+  yield();
+  if (_wire->requestFrom(_address, size) != size)
+  {
+    _error = PCF8574_I2C_ERROR;
+    return false;
+  }
+  for (uint8_t i = 0; i < size; i++)
+  {
+    array[i] = _wire->read();
+  }
+  _dataIn = array[size - 1];
+  return true;
 }
 
 
@@ -209,7 +241,7 @@ void PCF8574::select(const uint8_t pin)
   uint8_t n = 0x00;
   if (pin < 8) n = 1 << pin;
   write8(n);
-};
+}
 
 
 void PCF8574::selectN(const uint8_t pin)

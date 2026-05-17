@@ -1,0 +1,61 @@
+#######################################
+# Syntax Coloring Map for EspBoatAudio
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+EspBoatAudio	KEYWORD1
+AudioHandle	KEYWORD1
+QueueItem	KEYWORD1
+VoiceId	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+begin	KEYWORD2
+setMasterVolume	KEYWORD2
+
+playFx	KEYWORD2
+playFxStream	KEYWORD2
+playFxAuto	KEYWORD2
+stopFx	KEYWORD2
+stopAllFx	KEYWORD2
+
+playVoice	KEYWORD2
+playVoiceStream	KEYWORD2
+playVoiceRepeat	KEYWORD2
+playVoiceThen	KEYWORD2
+playVoiceQueue	KEYWORD2
+stopVoice	KEYWORD2
+stop	KEYWORD2
+
+preloadEngineLoop	KEYWORD2
+playPreloadedEngineLoop	KEYWORD2
+engineSetPitch	KEYWORD2
+engineSetVolume	KEYWORD2
+engineStop	KEYWORD2
+
+ambientStop	KEYWORD2
+
+isPlaying	KEYWORD2
+positionMillis	KEYWORD2
+lengthMillis	KEYWORD2
+remainingMillis	KEYWORD2
+inWindow	KEYWORD2
+
+streamTick	KEYWORD2
+chainTick	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+VOICE_ENGINE	LITERAL1
+VOICE_AMBIENT	LITERAL1
+VOICE_FX0	LITERAL1
+VOICE_FX1	LITERAL1
+VOICE_FX2	LITERAL1
+VOICE_FX3	LITERAL1

@@ -1,0 +1,32 @@
+#######################################
+# Syntax Coloring Map EkmfaRx
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+EkmfaRxClass	KEYWORD1
+EkmfaRx	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+process	KEYWORD2
+setEepBaseAddr	KEYWORD2
+getEepTotalSize	KEYWORD2
+updateDurationMs	KEYWORD2
+getEepDurationMs	KEYWORD2
+debugProtocol	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+EKMFA_RX_RESET_DURATION_IDX	LITERAL1
+EKMFA_RX_BURST_DURATION_IDX	LITERAL1
+EKMFA_RX_INTER_BURST_DURATION_IDX	LITERAL1
+EKMFA_RX_LAST_RECALL_DURATION_IDX	LITERAL1
+A_AREA	LITERAL1
+D_AREA	LITERAL1
+EKMFA_FCT_MAP_TBL	LITERAL1
+EKMFA_FCT_POS	LITERAL1

@@ -1,0 +1,282 @@
+#ifndef RemoteXYGui_h
+#define RemoteXYGui_h  
+
+#include "RemoteXYFunc.h" 
+#include "RemoteXYTime.h"  
+#include "RemoteXYData.h"   
+#include "RemoteXYConnection.h"
+#include "RemoteXYStream_Stream.h" 
+#include "RemoteXYConnectionStream.h"
+#include "RemoteXYConnectionServer.h"
+#include "RemoteXYConnectionCloud.h"
+#include "RemoteXYType.h"   
+
+
+
+class CRemoteXYGui: public CRemoteXYGuiData {
+
+  public:
+  CRemoteXYGui *next;
+
+  public:
+  CRemoteXYGui (CRemoteXYData * _data, const void * _conf, void * _var, const char * _accessPassword = NULL) {
+
+    data = _data;
+
+    uint8_t* pv = (uint8_t*)_var;    
+    inputVar = pv;
+    
+    threads = NULL;
+    connections = NULL; 
+    variableEvents = NULL;    
+    
+    connect_flag = NULL; 
+    
+    complexVarCount = 0;    
+    uint16_t eepromCount = 0;
+    
+    uint8_t* p = (uint8_t*)_conf;    
+    editorVersion = 0;
+    uint8_t confVersion = rxy_readConfByte (p++);
+           
+    if (confVersion >= 0xfe)   {  
+      // medium editor version
+      // FF/FE IL IL OL OL 
+      inputLength = rxy_readConfByte (p++);
+      inputLength |= rxy_readConfByte (p++)<<8;
+      outputLength = rxy_readConfByte (p++); 
+      outputLength |= rxy_readConfByte (p++)<<8; 
+    }
+    else {
+      // old editor version
+      // IL OL 
+      inputLength = confVersion;
+      outputLength = rxy_readConfByte (p++);    
+    }     
+    
+    pv += inputLength;
+    outputVar = pv;
+    pv += outputLength;    
+        
+    if (confVersion == 0xfe) {
+      // CVL CVL CVDATA EL EL EDATA 
+      complexVarCount = rxy_readConfByte (p++);
+      complexVarCount |= rxy_readConfByte (p++)<<8; 
+      // init complex vars
+      complexVar = (CRemoteXYTypeInner**)malloc (sizeof(CRemoteXYTypeInner*) * complexVarCount);
+      for (uint16_t i = 0; i < complexVarCount; i++) {
+        CRemoteXYTypeInner * inner = ((CRemoteXYType*)pv)->inner;
+        complexVar[i] = inner;
+        inner->setGuiData (this);
+        p = inner->init (p);
+        pv += ((CRemoteXYType*)pv)->getTypeSize();
+      }
+      
+      eepromCount = rxy_readConfByte (p++);
+      eepromCount |= rxy_readConfByte (p++)<<8;
+      
+      // init eeprom
+      uint16_t v, s, b;
+      for (uint16_t i = 0; i < eepromCount; i++) {      
+        v = rxy_readConfByte (p++); 
+        s = rxy_readConfByte (p++); 
+        b = rxy_readConfByte (p++); 
+        v |= (b & 0x3f) << 8; 
+        s |= (b & 0xc0) << 2; 
+#if defined(REMOTEXY_HAS_EEPROM)
+        data->eeprom.addItem (inputVar + v, s, (v+(s<<6)) & 0x7fff);
+#elif defined(REMOTEXY__DEBUGLOG)
+        RemoteXYDebugLog.write(F("Not include EEPROM.h, variable not saved"));
+#endif       
+      }  
+
+    }
+    
+    //CL CL CONF
+    confLength = rxy_readConfByte (p++);
+    confLength |= rxy_readConfByte (p++)<<8;  
+    conf = p; 
+    
+    if (confVersion >= 0xfe) {
+      // EV
+      editorVersion = rxy_readConfByte (p);
+    }
+    
+    
+    appConnectFlag = 0;
+    if (confVersion != 0xfe) {
+      connect_flag = pv; 
+      *connect_flag = appConnectFlag;  
+    }
+
+    inputVarCopy = (uint8_t*)malloc (inputLength); 
+    rxy_bufClear (inputVar, inputLength+outputLength);    
+    rxy_bufCopy (inputVarCopy, inputVar, inputLength);
+     
+    setPassword (_accessPassword);   
+  }
+ 
+ 
+
+  // ADD CONNECTIONS
+
+  public:  
+  void addConnection (Stream * stream) {  
+    CRemoteXYStream_Stream * comm = new CRemoteXYStream_Stream (stream);
+    if (comm) {
+      addConnection (comm);
+    }         
+#if defined(REMOTEXY__DEBUGLOG) 
+    else {
+      RemoteXYDebugLog.write(F("Out of memory in addConnection()"));
+    }
+#endif 
+  }
+  
+  public:  
+  void addConnection (Stream &stream) {
+    addConnection (&stream);          
+  }
+   
+  public:  
+  void addConnection (CRemoteXYStream * stream) {  
+    CRemoteXYConnection * conn = new CRemoteXYConnectionStream (stream);
+    if (conn) {
+      conn->init (this); 
+    }
+#if defined(REMOTEXY__DEBUGLOG) 
+    else {
+      RemoteXYDebugLog.write(F("Out of memory in addConnection()"));
+    }
+#endif       
+  } 
+    
+  public:  
+  void addConnectionServer (CRemoteXYNet * net, uint16_t port) {
+    if (net) {
+      CRemoteXYConnectionServer * conn = new CRemoteXYConnectionServer (net, port);
+      if (conn) {
+        addConnection (conn); 
+      }
+#if defined(REMOTEXY__DEBUGLOG) 
+      else {
+        RemoteXYDebugLog.write(F("Out of memory in addConnectionServer()"));
+      }
+#endif       
+    }  
+#if defined(REMOTEXY__DEBUGLOG) 
+    else {
+      RemoteXYDebugLog.write(F("Out of memory for RemoteXYNet"));
+    }
+#endif       
+  } 
+  
+  public:  
+  void addConnectionCloud (CRemoteXYNet * net, const char * cloudHost, uint16_t port, const char * cloudToken) {
+    if (net) {
+      CRemoteXYConnectionCloud * conn = new CRemoteXYConnectionCloud (net, cloudHost, port, cloudToken);
+      if (conn) {
+        addConnection (conn);
+      }    
+#if defined(REMOTEXY__DEBUGLOG) 
+      else {
+        RemoteXYDebugLog.write(F("Out of memory in addConnectionCloud()"));
+      }
+#endif        
+    }  
+#if defined(REMOTEXY__DEBUGLOG) 
+    else {
+      RemoteXYDebugLog.write(F("Out of memory for RemoteXYNet"));
+    }
+#endif    
+  }
+
+  public: // private
+  void addConnection (CRemoteXYConnectionNet * conn) {
+    data->addNet (conn->net);
+    conn->next = connections;
+    connections = conn; 
+    conn->init (this);   
+  } 
+    
+   
+  public:
+  void handler () {
+    
+    if (!rxy_bufCompare (inputVarCopy, inputVar, inputLength)) {
+      rxy_bufCopy (inputVarCopy, inputVar, inputLength);
+      CRemoteXYThread::notifyInputVarNeedSend (this); // notify all threads that user change input vars
+    }
+    
+    // complex variables handler     
+    for (uint16_t i = 0; i < complexVarCount; i++) {
+      complexVar[i]->handler ();
+    }
+    
+    // threads handler
+    CRemoteXYThread * pt = threads;
+    appConnectFlag = 0;
+    while (pt) {   
+      pt->handler ();     
+      appConnectFlag += pt->connect_flag;
+      pt = pt->next;
+    }
+    if (connect_flag) {
+      *connect_flag = appConnectFlag;
+    }
+    
+    // connections handler    
+    CRemoteXYConnectionNet * connection = connections; 
+    while (connection) {
+      connection->handler (); 
+      connection = connection->next;
+    }  
+    
+    // events
+    CRemoteXYVariableEventDescriptor * pe = variableEvents;
+    while (pe) {
+      if (pe->needEvent != 0) {
+        pe->event ();
+        pe->needEvent = 0;
+      }
+      pe = pe->next;
+    }
+  
+    
+  }
+
+
+  public:
+  uint8_t appConnected () {
+    return appConnectFlag;
+  }
+  
+  public:
+  uint8_t connectionsConfigured () {
+    CRemoteXYConnectionNet * connection = connections; 
+    while (connection) {
+      if (connection->configured () == 0) return 0; 
+      connection = connection->next;
+    }
+    return 1;    
+  }
+  
+  ///// EVENTS
+  public:
+  void addVariableEvent (void * _var, uint16_t _size, void (*_event) ()) {
+    if (_event && _var && _size > 0) {
+      int16_t offset = (uint8_t*)_var - inputVar;
+      if ((offset >= 0) && (offset + _size <= inputLength)) {
+        CRemoteXYVariableEventDescriptor * event = new CRemoteXYVariableEventDescriptor (offset, _size, _event);
+        event->next = variableEvents;
+        variableEvents = event;
+      }
+    }
+  }  
+  
+  
+};
+
+typedef CRemoteXYGui RemoteXYGui; 
+
+#endif //RemoteXYGui_h

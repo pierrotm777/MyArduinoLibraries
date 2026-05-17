@@ -1,18 +1,12 @@
 /*
-   Example: using server and cloud connections together
+   RemoteXY example: using server and cloud connections together
    
-   This source code of graphical user interface 
-   has been generated automatically by RemoteXY editor.
-   To compile this code using RemoteXY library 3.1.1 or later version 
-   download by link http://remotexy.com/en/library/
-   To connect using RemoteXY mobile app by link http://remotexy.com/en/download/                   
-     - for ANDROID 4.5.1 or later version;
-     - for iOS 1.4.1 or later version;
+   To connect, use the RemoteXY mobile 
+   application at http://remotexy.com/en/download/               
     
-   This source code is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.    
+   Copyright (c) 2014-2025 Evgenii Shemanuev
+   Licensed under the MIT License. See LICENSE file in the project root for 
+   full license information.   
 */
 
 //////////////////////////////////////////////
@@ -20,7 +14,7 @@
 //////////////////////////////////////////////
 
 // RemoteXY select connection mode and include library
-#define REMOTEXY__DEBUGLOG 
+//#define REMOTEXY__DEBUGLOG 
 
 #if defined (ESP8266)
   #include <ESP8266WiFi.h>
@@ -33,7 +27,7 @@
 
 // RemoteXY configurate  
 #pragma pack(push, 1)
-uint8_t RemoteXY_CONF[] =
+uint8_t const PROGMEM RemoteXY_CONF_PROGMEM[] =
   { 255,1,0,1,0,27,0,10,13,2,
   1,0,9,9,46,46,6,7,50,50,
   2,31,88,0,65,4,62,16,31,31,
@@ -61,28 +55,24 @@ struct {
 /////////////////////////////////////////////
 
 
-CRemoteXY *remotexy;
-
 void setup() 
 {
   
-  CRemoteXYComm_WiFi * wifi =  new CRemoteXYComm_WiFi (
-    "myHomeFiFi",                            // REMOTEXY_WIFI_SSID
-    "myPass"                                 // REMOTEXY_WIFI_PASSWORD
+  CRemoteXYNet * net =  new CRemoteXYNet_WiFi (
+    "myHomeFiFi",    // WIFI_SSID
+    "myPass"         // WIFI_PASSWORD
   );
+  RemoteXYGui * gui = RemoteXYEngine.addGui (RemoteXY_CONF_PROGMEM, &RemoteXY);
   
-  remotexy = new CRemoteXY (RemoteXY_CONF_PROGMEM, &RemoteXY);
-  
-  remotexy->addConnection (new CRemoteXYConnectionServer ( wifi, 
-    6377                                      // REMOTEXY_SERVER_PORT
-  ));
-  
-  remotexy->addConnection (new CRemoteXYConnectionCloud ( wifi, 
-    "cloud.remotexy.com",                     // REMOTEXY_CLOUD_SERVER 
-    6376,                                     // REMOTEXY_CLOUD_PORT
-    "xxxxxxxxxxxxxxxxxxxxxxxx"                // REMOTEXY_CLOUD_TOKEN
-  ));
-  
+  // first cinnection
+  gui->addConnectionServer (net, 6377);   // REMOTEXY_SERVER_PORT
+
+  // second connection
+  gui->addConnectionCloud (net,       
+    "cloud.remotexy.com",   // CLOUD_SERVER
+    6376,                   // CLOUD_PORT
+    "xxxxxxxxxxxxxxxxxxxx"  // CLOUD_TOKEN
+  );
   
   
   // TODO you setup code
@@ -91,7 +81,7 @@ void setup()
 
 void loop() 
 { 
-  remotexy->handler ();
+  RemoteXYEngine.handler ();
   
   if (RemoteXY.button_1)  RemoteXY.led_1_r = 255;
   else RemoteXY.led_1_r = 0;

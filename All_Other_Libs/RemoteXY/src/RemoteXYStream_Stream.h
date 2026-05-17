@@ -1,7 +1,7 @@
 #ifndef RemoteXYStream_Stream_h
 #define RemoteXYStream_Stream_h
 
-#include <Stream.h>
+//#include <Stream.h>
 
 // This class allows you to connect 
 // any communication method that is inherited from the stream class (stream.h)
@@ -11,18 +11,18 @@
 //   write (uint8_t)
 // You must initialize and configure the stream yourself
 
-#include "RemoteXYComm.h"
+#include "RemoteXYNet.h"
 
 
 class CRemoteXYStream_Stream : public CRemoteXYStream {
-  protected:
+  public:
   Stream * stream;  
   
   public:
   CRemoteXYStream_Stream (Stream * _stream) : CRemoteXYStream () { 
     stream = _stream;
 #if defined(REMOTEXY__DEBUGLOG)
-    RemoteXYDebugLog.write("Init stream");
+    RemoteXYDebugLog.write(F("Init stream"));
 #endif
   } 
   
@@ -46,6 +46,10 @@ class CRemoteXYStream_Stream : public CRemoteXYStream {
     stream->write (byte);
   }
 
+  void flush () override {
+    stream->flush ();
+  }
+  
   
 };
 

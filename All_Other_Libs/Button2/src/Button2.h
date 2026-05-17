@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////
 /*
   Button2.h - Arduino Library to simplify working with buttons.
-  Copyright (C) 2017-2025 Lennart Hennigs.
+  Copyright (C) 2017-2026 Lennart Hennigs.
   Released under the MIT license.
 
 */
@@ -14,12 +14,34 @@
 
 /////////////////////////////////////////////////////////////////
 
-#if defined(ARDUINO_ARCH_ESP32) || defined(ESP8266)
+#ifndef BUTTON2_HAS_STD_FUNCTION      // for user force enable std::function
+#ifndef BUTTON2_DISABLE_STD_FUNCTION  // for user force disable std::function
+#if __cplusplus >= 201103L && !defined(__AVR__)
 #include <functional>
+#include <utility>
+#define BUTTON2_HAS_STD_FUNCTION 1
 #endif
+#endif
+#endif
+
 #include <Arduino.h>
 
-#include "Hardware.h"
+// Define Arduino constants if not available (for testing environments)
+#ifndef INPUT
+#define INPUT 0x0
+#endif
+#ifndef OUTPUT
+#define OUTPUT 0x1
+#endif
+#ifndef INPUT_PULLUP
+#define INPUT_PULLUP 0x2
+#endif
+#ifndef HIGH
+#define HIGH 0x1
+#endif
+#ifndef LOW
+#define LOW 0x0
+#endif
 
 /////////////////////////////////////////////////////////////////
 
@@ -42,63 +64,82 @@ enum clickType {
 
 class Button2 {
  protected:
-  int id;
-  byte pin;
-  byte state;
-  byte prev_state;
-  byte click_count = 0;
-  byte last_click_count = 0;
-  clickType last_click_type = empty;
-  bool was_pressed = false;
-  unsigned long click_ms;
-  unsigned long down_ms;
+  // Memory layout optimized for minimal padding
+  // Ordered by size: pointers/callbacks first, then long, int, uint16_t, uint8_t, bool
 
-  bool longclick_retriggerable;
-  uint16_t longclick_counter = 0;
-  bool longclick_detected = false;
-  bool longclick_reported = false;
-
-  unsigned int debounce_time_ms = BTN_DEBOUNCE_MS;
-  unsigned int longclick_time_ms = BTN_LONGCLICK_MS;
-  unsigned int doubleclick_time_ms = BTN_DOUBLECLICK_MS;
-
-  unsigned int down_time_ms = 0;
-  bool pressed_triggered = false;
-
-#if defined(ARDUINO_ARCH_ESP32) || defined(ESP8266)
+#ifdef BUTTON2_HAS_STD_FUNCTION
   typedef std::function<void(Button2 &btn)> CallbackFunction;
-  typedef std::function<byte()> StateCallbackFunction;
+  typedef std::function<uint8_t()> StateCallbackFunction;
+  typedef std::function<void()> InitCallbackFunction;
+  #define BUTTON2_MOVE(v) std::move(v)
+  #define BUTTON2_NULL nullptr
 #else
   typedef void (*CallbackFunction)(Button2 &);
-  typedef byte (*StateCallbackFunction)();
+  typedef uint8_t (*StateCallbackFunction)();
+  typedef void (*InitCallbackFunction)();
+  #define BUTTON2_MOVE
+  #define BUTTON2_NULL NULL
 #endif
 
-  StateCallbackFunction get_state_cb = NULL;
+  // Function pointers (largest members on most platforms)
+  StateCallbackFunction get_state_cb = BUTTON2_NULL;
+  CallbackFunction pressed_cb = BUTTON2_NULL;
+  CallbackFunction released_cb = BUTTON2_NULL;
+  CallbackFunction change_cb = BUTTON2_NULL;
+  CallbackFunction tap_cb = BUTTON2_NULL;
+  CallbackFunction click_cb = BUTTON2_NULL;
+  CallbackFunction long_cb = BUTTON2_NULL;
+  CallbackFunction longclick_detected_cb = BUTTON2_NULL;
+  CallbackFunction double_cb = BUTTON2_NULL;
+  CallbackFunction triple_cb = BUTTON2_NULL;
 
-  CallbackFunction pressed_cb = NULL;
-  CallbackFunction released_cb = NULL;
-  CallbackFunction change_cb = NULL;
-  CallbackFunction tap_cb = NULL;
-  CallbackFunction click_cb = NULL;
-  CallbackFunction long_cb = NULL;
-  CallbackFunction longclick_detected_cb = NULL;
-  CallbackFunction double_cb = NULL;
-  CallbackFunction triple_cb = NULL;
+  // unsigned long (4 bytes on most platforms)
+  unsigned long click_ms = 0;
+  unsigned long down_ms = 0;
 
-  void _handlePress(long now);
-  void _handleRelease(long now);
-  void _releasedNow(long now);
-  void _pressedNow(long now);
+  // unsigned int / uint16_t (2 bytes)
+  unsigned int debounce_time_ms = BTN_DEBOUNCE_MS;
+  unsigned int longclick_time_ms = BTN_LONGCLICK_MS;
+  unsigned int longclick_interval_ms = 0;
+  unsigned int doubleclick_time_ms = BTN_DOUBLECLICK_MS;
+  unsigned int down_time_ms = 0;
+  uint16_t longclick_counter = 0;
+
+  // int (2-4 bytes depending on platform)
+  int id;
+
+  // uint8_t (1 byte each)
+  uint8_t pin;
+  uint8_t state = HIGH;
+  uint8_t prev_state = HIGH;
+  uint8_t click_count = 0;
+  uint8_t last_click_count = 0;
+  uint8_t _pressedState = LOW;
+
+  // clickType (typically 1 byte enum)
+  clickType last_click_type = clickType::empty;
+
+  // bool (1 byte each, grouped at end)
+  bool was_pressed = false;
+  bool longclick_retriggerable = false;
+  bool longclick_detected = false;
+  bool longclick_reported = false;
+  bool pressed_triggered = false;
+
+  void _handlePress(unsigned long now);
+  void _handleRelease(unsigned long now);
+  void _releasedNow(unsigned long now);
+  void _pressedNow(unsigned long now);
   void _validKeypress();
-  void _checkForLongClick(long now);
+  void _checkForLongClick(unsigned long now);
   void _reportClicks();
   void _setID();
 
  public:
   Button2();
-  Button2(byte attachTo, byte buttonMode = INPUT_PULLUP, boolean activeLow = true, Hardware* hardware = new ArduinoHardware());
+  Button2(uint8_t attachTo, uint8_t buttonMode = INPUT_PULLUP, bool activeLow = true);
 
-  void begin(byte attachTo, byte buttonMode = INPUT_PULLUP, boolean activeLow = true, Hardware* hardware = new ArduinoHardware());
+  void begin(uint8_t attachTo, uint8_t buttonMode = INPUT_PULLUP, bool activeLow = true, InitCallbackFunction initCallback = BUTTON2_NULL);
 
   void setDebounceTime(unsigned int ms);
   void setLongClickTime(unsigned int ms);
@@ -106,8 +147,9 @@ class Button2 {
 
   unsigned int getDebounceTime() const;
   unsigned int getLongClickTime() const;
+  unsigned int getLongClickInterval() const;
   unsigned int getDoubleClickTime() const;
-  byte getPin() const;
+  uint8_t getPin() const;
 
   void reset();
 
@@ -126,12 +168,13 @@ class Button2 {
   void setLongClickDetectedHandler(CallbackFunction f);
 
   void setLongClickDetectedRetriggerable(bool retriggerable);
+  void setLongClickDetectedRetriggerable(bool retriggerable, unsigned int retrigger_ms);
 
   unsigned int wasPressedFor() const;
-  boolean isPressed() const;
-  boolean isPressedRaw() const;
+  bool isPressed() const;
+  bool isPressedRaw() const;
   void resetPressedState();
-  byte resetClickCount();
+  uint8_t resetClickCount();
 
   bool wasPressed() const;
   clickType read(bool keepState = false);
@@ -141,24 +184,22 @@ class Button2 {
   void waitForTriple(bool keepState = false);
   void waitForLong(bool keepState = false);
 
-  byte getNumberOfClicks() const;
-  byte getLongClickCount() const;
+  uint8_t getNumberOfClicks() const;
+  uint16_t getLongClickCount() const;
 
   clickType getType() const;
-  String clickToString(clickType type) const;
+  const char* clickToString(clickType type) const;
 
   int getID() const;
   void setID(int newID);
 
-  bool operator==(Button2 &rhs);
+  bool operator==(const Button2 &rhs) const;
 
   void loop();
 
  private:
-  static int _nextID;
-  byte _pressedState;
-  byte _getState() const;
-  Hardware* hw;
+  static uint8_t _nextID;
+  uint8_t _getState() const;
 
 };
 /////////////////////////////////////////////////////////////////

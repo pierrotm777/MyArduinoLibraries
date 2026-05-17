@@ -2,10 +2,96 @@
 
 **Note:** Unreleased changes are checked in but not part of an official release (available through the Arduino IDE or PlatfomIO) yet. This allows you to test WiP features and give feedback to them.
 
+## [2.6.0] - 2026-05-09
 
-## Unreleased
+- **Fixed (CRITICAL)**: Type mismatch in internal timing methods — `_handlePress()`, `_handleRelease()`, `_pressedNow()`, `_releasedNow()`, and `_checkForLongClick()` now accept `unsigned long` instead of `long`, matching the return type of `millis()`. The previous `long` parameter caused incorrect timing arithmetic after ~24.8 days of uptime on AVR and ESP platforms
+- **Fixed**: `waitForClick()`, `waitForDouble()`, `waitForTriple()`, and `waitForLong()` were silently ignoring their `keepState` parameter — it is now correctly forwarded to `read()`
+- **Fixed**: `_pressedState` and `longclick_retriggerable` member variables had no default initializers; they are now initialized to `LOW` and `false` respectively, preventing undefined behavior if query methods are called before `begin()`
+- **Fixed**: Wrong initialization order in `test_configuration.cpp` where `begin()` was called before `setButtonStateFunction()`, causing the initial state to be read via `digitalRead()` instead of the injected state function
+- **Changed**: `getLongClickCount()` return type changed from `uint8_t` to `uint16_t` to match the `uint16_t longclick_counter` storage — with a 200ms retriggerable interval the previous `uint8_t` wrapped after ~51 seconds
+- **Changed**: `_nextID` static counter type changed from `int` to `uint8_t`, saving 1 byte of static RAM on AVR
+- **Added**: `setLongClickDetectedRetriggerable(bool retriggerable, unsigned int interval_ms)` overload — allows setting the retrigger interval in a single call
+- **Internal**: Extracted shared test infrastructure into `test/shared/test_helpers.h`, removing ~80 lines of duplicated boilerplate from each of the 6 test suites and ensuring a single, consistent `click()` implementation that calls `loop()` continuously during the hold period
 
-- nothing, so far
+## [2.5.0] - 2025-10-25
+
+This release focuses on code quality improvements, bug fixes, comprehensive testing infrastructure, and enhanced support for I2C port expanders and virtual buttons.
+
+### Fixed
+
+- **CRITICAL**: Fixed integer overflow in long click counter calculation on AVR platforms (Arduino Nano/Uno). The multiplication `longclick_time_ms * (longclick_counter + 1)` now uses proper casting to prevent 16-bit overflow that could cause incorrect long click timing [Button2.cpp:415]
+- **Issue #82**: Fixed ambiguous reference to `empty` enum value when compiling with libraries that use `using namespace std;`. The library now uses qualified references (`clickType::empty`) internally to avoid conflicts with `std::empty()` from C++17 standard library. This fix maintains 100% backward compatibility - user code does not need to change [Button2.h:117, Button2.cpp:225]
+- Fixed uninitialized member variables (`click_ms`, `down_ms`, `state`, `prev_state`) in constructor that could cause phantom button presses and incorrect click detection on startup [Button2.h:69-76]
+- Fixed `resetPressedState()` to properly reset all timing variables (`click_ms`, `down_ms`, `last_click_count`) for complete state reset [Button2.cpp:223-235]
+- Fixed `operator==` const correctness - now properly uses `const Button2&` parameter and `const` method qualifier [Button2.h:177, Button2.cpp:98]
+- Fixed test initialization order bug where `setButtonStateFunction()` was called after `begin()`, causing phantom press/release transitions
+- Fixed compile_examples.sh: Removed unnecessary AUnit dependency from example compilation
+- Fixed compile_examples.sh: Corrected M5StackCore2CustomHandler exclusion logic - now properly runs on M5Stack platform
+- Fixed compile_examples.sh: Improved platformio.ini generation for M5Stack dependencies
+
+### Added
+
+- **Issue #69**: Added optional initialization callback parameter to `begin()` method for virtual buttons. This allows hardware initialization (I2C/SPI expanders, touch sensors, etc.) to be encapsulated within the button setup. The callback is invoked immediately when `begin()` is called, ensuring hardware is ready before button polling starts. Example: `button.begin(BTN_VIRTUAL_PIN, INPUT, true, initCallback);` [Button2.h:141, Button2.cpp:34-43]
+- **Issue #70**: Added `I2CPortExpanderButtons.ino` example demonstrating the efficient caching pattern for multiple buttons on I2C port expanders (PCF8574, MCP23017). The example shows how to read the entire port once per loop cycle and use bit masking in state handlers, reducing I2C bus traffic from N transactions to just 1 per cycle. This pattern scales efficiently to 8+ buttons while minimizing I2C overhead
+- **Comprehensive Test Suite**: Added 70 tests across 6 test suites using AUnit framework:
+  - **test_basics** (10 tests): Initialization, configuration, default values, init callback
+  - **test_clicks** (11 tests): Click detection - single, double, triple, long
+  - **test_callbacks** (12 tests): All event handler callbacks
+  - **test_states** (19 tests): State management, queries, timing edge cases
+  - **test_configuration** (7 tests): Runtime settings and configuration
+  - **test_multiple** (11 tests): Multiple button interactions
+- Added EpoxyDuino-based native testing (no hardware required) - tests run on host machine emulating ESP8266/ESP32
+- Added automated compilation testing script (`test/compile_examples.sh`) that tests all examples across multiple platforms (ESP8266, ESP32, AVR)
+- Added comprehensive test documentation in `test/README.md` and `test/CLAUDE.md`
+- Added extensive inline code documentation explaining:
+  - Asymmetric debouncing strategy (press vs release edge handling)
+  - Long click detection design (only on first click to avoid multi-click ambiguity)
+  - Critical importance of calling `loop()` regularly (recommended 1-10ms frequency)
+  - Virtual button usage and I2C port expander patterns
+- Added documentation for `wasPressedFor()` behavior in multi-click scenarios (returns duration of most recent click only) [Issue #35]
+
+### Changed
+
+- **OPTIMIZATION**: Reordered struct members for better memory packing, reducing padding overhead on 32-bit platforms (ESP32/ESP8266) [Button2.h:66-122]
+- **PERFORMANCE**: Changed `clickToString()` to return `const char*` instead of `String` to avoid heap allocation and memory fragmentation on low-memory devices (AVR) [Button2.h:172, Button2.cpp:206]
+- **CODE QUALITY**: Replaced NULL with BUTTON2_NULL macro (nullptr on C++11+, NULL on AVR) for consistent modern C++ practices while maintaining Arduino compatibility
+- **Breaking Change (Minor)**: Return type of `clickToString()` changed from `String` to `const char*` - most code will work unchanged, but assignments to `String` variables may need explicit casting
+- Improved test reliability through proper initialization order and state management
+- **TEST PERFORMANCE**: Reduced setup delays in all test suites from 1000ms to 100ms, improving native test execution time by ~5 seconds and reducing intermittent timeouts
+- Enhanced README.md with:
+  - Virtual buttons and custom state handlers section
+  - Efficient pattern for multiple I2C buttons with caching example
+  - Updated std::function platform support documentation [Issue #58]
+  - Added scoped enum usage recommendation for `clickType::empty` [Issue #82]
+- Updated CustomButtonStateHandler.ino example to demonstrate initialization callback usage
+- Updated documentation (CLAUDE.md) to reflect current testing approach using `setButtonStateFunction()`
+
+### Removed
+
+- Removed Hardware.h abstraction layer (replaced with simpler `setButtonStateFunction()` approach)
+- Removed unused Button2TestHelper utility class
+
+### Documentation
+
+- Documented current behavior of `wasPressedFor()` for multi-click scenarios [Issue #35]
+- Documented std::function support now works on all C++11+ platforms except AVR [Issue #58]
+- Added comprehensive virtual button documentation with I2C port expander examples
+- Added notes about `clickType::empty` scoped syntax to avoid naming conflicts [Issue #82]
+
+## [2.4.1] - 2025-07-19
+
+- **Issue #58**: Improved detection and enabling of `std::function` support for callback handlers. Switched from platform-specific checks to language-version-based detection (`__cplusplus >= 201103L`), excluding AVR platforms. This provides broader compatibility for modern boards including ESP32, ESP8266, Teensy, ARM, RP2040, SAMD, STM32, and other C++11+ platforms.
+
+## [2.4.0] - 2025-07-19
+
+- Removed workaround file `main.cpp` to prevent compile warnings and undefined behavior in PlatformIO. The library now compiles correctly as a dependency in PlatformIO projects. [PR #83](https://github.com/LennartHennigs/Button2/issues/83)
+- Improved callback handler performance and compatibility by using `std::move` for `std::function` assignments on supported platforms (ESP32/ESP8266). Users can now force-enable or disable `std::function` support via macros. [PR #84](https://github.com/LennartHennigs/Button2/pull/84)
+
+## [2.3.5] - 2025-05-01
+
+- fixed contant name in example `M5StackCore2CustomHandler.ino`
+- replaced `boolean` with `bool` as requested in [#81](https://github.com/LennartHennigs/Button2/issues/81)
+- replaced `byte` with `uint_8` as requested in [#79](https://github.com/LennartHennigs/Button2/issues/79)
 
 ## [2.3.4] - 2025-01-26
 
@@ -21,7 +107,6 @@
 ## [2.3.2] - 2024-02-17
 
 - expanded condition to check for API version 2.0 (for UNO R4, RP2040, ...)
-
 
 ## [2.3.1] - 2024-01-02
 

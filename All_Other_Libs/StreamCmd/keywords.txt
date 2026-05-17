@@ -1,0 +1,23 @@
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+StreamCmd	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+addCmd	KEYWORD2
+setDefaultHandler	KEYWORD2
+loop	KEYWORD2
+clearBuffer	KEYWORD2
+next	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+####################################### 
+STREAM_CMD_VERSION	LITERAL1
+STREAM_CMD_REVISION	LITERAL1

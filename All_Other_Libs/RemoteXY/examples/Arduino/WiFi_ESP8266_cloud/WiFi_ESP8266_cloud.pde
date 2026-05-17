@@ -1,20 +1,12 @@
 /*
-   Simple button example for Arduino and external ESP8266 on HardwareSerial
-   You must disconnect ESP8266 from pins when loading the program
+   RemoteXY example for Arduino using external ESP8266 to connect via cloud server
    
-   
-   This source code of graphical user interface 
-   has been generated automatically by RemoteXY editor.
-   To compile this code using RemoteXY library 3.1.1 or later version 
-   download by link http://remotexy.com/en/library/
-   To connect using RemoteXY mobile app by link http://remotexy.com/en/download/                   
-     - for ANDROID 4.5.1 or later version;
-     - for iOS 1.4.1 or later version;
+   To connect, use the RemoteXY mobile 
+   application at http://remotexy.com/en/download/               
     
-   This source code is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public
-   License as published by the Free Software Foundation; either
-   version 2.1 of the License, or (at your option) any later version.    
+   Copyright (c) 2014-2025 Evgenii Shemanuev
+   Licensed under the MIT License. See LICENSE file in the project root for 
+   full license information.   
 */
 
 //////////////////////////////////////////////
@@ -24,6 +16,7 @@
 // RemoteXY select connection mode and include library
 //#define REMOTEXY__DEBUGLOG 
 
+#include <SoftwareSerial.h>
 #include <RemoteXY.h>
 
 
@@ -57,27 +50,24 @@ struct {
 /////////////////////////////////////////////
 
 
-CRemoteXY *remotexy;
-
 void setup() 
 {
-  remotexy = new CRemoteXY (
-    RemoteXY_CONF_PROGMEM, 
-    &RemoteXY, 
-    new CRemoteXYConnectionCloud (
-      new CRemoteXYComm_ESP8266 (
-        new CRemoteXYStream_HardSerial (
-          &Serial,          // use Serial1 (Serial2, Serial3) for Arduino Mega board
-          115200
-        ),
-        "myHomeFiFi",         // REMOTEXY_WIFI_SSID
-        "myHomePass"),        // REMOTEXY_WIFI_PASSWORD
-      "cloud.remotexy.com",   // REMOTEXY_CLOUD_SERVER
-      6376,                   // REMOTEXY_CLOUD_PORT
-      "xxxxxxxxxxxxxxxxxxxx"  // REMOTEXY_CLOUD_TOKEN
-    )
-  ); 
   
+  RemoteXYNet * net = new CRemoteXYNet_ModemESP8266 (
+    new CRemoteXYStream_HardSerial (
+      &Serial,          // use Serial1 (Serial2, Serial3) for Arduino Mega board
+      115200
+    ),
+    "myHomeFiFi",       // WIFI_SSID
+    "12345678"          // WIFI_PASSWORD
+  );
+  RemoteXYGui * gui = RemoteXYEngine.addGui (RemoteXY_CONF_PROGMEM, &RemoteXY);
+  gui->addConnectionCloud (net,       
+    "cloud.remotexy.com",   // CLOUD_SERVER
+    6376,                   // CLOUD_PORT
+    "xxxxxxxxxxxxxxxxxxxx"  // CLOUD_TOKEN, Create a token in your personal account at remotexy.com
+  );
+
   
   // TODO you setup code
   
@@ -85,7 +75,7 @@ void setup()
 
 void loop() 
 { 
-  remotexy->handler ();
+  RemoteXYEngine.handler ();
   
   if (RemoteXY.button_1)  RemoteXY.led_1_r = 255;
   else RemoteXY.led_1_r = 0;
