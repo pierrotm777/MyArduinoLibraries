@@ -10,6 +10,8 @@
 #include "Arduino.h"
 #if defined(__MK20DX128__) || defined(__MK20DX256__) || defined(__MKL26Z64__) || defined(__MK66FX1M0__) || defined(__MK64FX512__) || defined(__IMXRT1062__)
 #define TEENSY_HW
+#elif defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+#define ESP32_HW
 #else
 #include "SoftwareSerial.h"
 #endif
@@ -36,6 +38,10 @@ class FrSkySportSingleWireSerial
 #endif
 #endif
                   };
+#elif defined(ESP32_HW)
+    // ESP32 / ESP32-S3: use hardware UARTs only.
+    // Prefer begin(SERIAL_1_S3, rxPin, txPin) or begin(SERIAL_2_S3, rxPin, txPin).
+    enum SerialId { SERIAL_1_S3 = 1, SERIAL_2_S3 = 2, SERIAL_1_S3_EXTINV = EXTINV_FLAG | 1, SERIAL_2_S3_EXTINV = EXTINV_FLAG | 2 };
 #elif defined(ESP8266) 
     enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_D2 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_D1 = 5, SOFT_SERIAL_PIN_12 = 12, SOFT_SERIAL_PIN_D6 = 12,
                     SOFT_SERIAL_PIN_13 = 13, SOFT_SERIAL_PIN_D7 = 13, SOFT_SERIAL_PIN_14 = 14, SOFT_SERIAL_PIN_D5 = 14, SOFT_SERIAL_PIN_15 = 15 , SOFT_SERIAL_PIN_D8 = 15 };
@@ -47,10 +53,13 @@ class FrSkySportSingleWireSerial
     enum SerialId { SERIAL_EXTINV = EXTINV_FLAG | 0, SOFT_SERIAL_PIN_2 = 2, SOFT_SERIAL_PIN_3 = 3, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_6 = 6, SOFT_SERIAL_PIN_7 = 7,
                      SOFT_SERIAL_PIN_8 = 8, SOFT_SERIAL_PIN_9 = 9, SOFT_SERIAL_PIN_10 = 10, SOFT_SERIAL_PIN_11 = 11, SOFT_SERIAL_PIN_12 = 12 };
 #else
-  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
+  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP32/ESP32-S3, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
 #endif
     FrSkySportSingleWireSerial();
     void begin(SerialId id);
+#if defined(ESP32_HW)
+    void begin(SerialId id, int8_t rxPin, int8_t txPin);
+#endif
     void sendHeader(uint8_t id);
     void sendData(uint16_t dataTypeId, uint32_t id);
     void sendEmpty(uint16_t dataTypeId);
@@ -70,6 +79,12 @@ class FrSkySportSingleWireSerial
     void initTeensySerial(SerialId id, HardwareSerial *serial, volatile uint8_t *uartCtrl1, volatile uint8_t *uartCtrl2);
     volatile uint8_t *uartCtrl;   
 #endif
+#elif defined(ESP32_HW)
+    void initEsp32Serial(SerialId id, HardwareSerial *serial, int8_t rxPin, int8_t txPin);
+    HardwareSerial* hwSerial;
+    SerialId serialId;
+    int8_t rxPin;
+    int8_t txPin;
 #else
     void initTwoWireSerial(SerialId id, HardwareSerial *serial);
     void initSoftSerial(SerialId id);

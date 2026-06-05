@@ -49,6 +49,11 @@ public:
 	JetiExBusProtocol();
 
 	void    Start( const char * name, JETISENSOR_CONST * pSensorArray, int comPort = 2 );   // call once in setup(), comPort: 0=Default, Teensy: 1..3
+
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+	void    Start( const char * name, JETISENSOR_CONST * pSensorArray, int comPort, int8_t rxPin, int8_t txPin ); // ESP32/S3 explicit UART pins
+#endif
+
 	void    DoJetiExBus();              // call periodically in loop()
 
 	uint32_t HasNewChannelData() { bool b = m_bNewChannelData; m_bNewChannelData = false; return b; }

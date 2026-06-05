@@ -45,6 +45,12 @@ public:
   static JetiExBusSerial * CreatePort( int comPort ); // comPort: 0=default, Teensy: 1..3
 
   virtual void   begin(uint32_t baud, uint32_t format) = 0;
+
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+  // ESP32/S3 helper: default implementation keeps compatibility for non-ESP32 subclasses.
+  virtual void   begin(uint32_t baud, uint32_t format, int8_t rxPin, int8_t txPin) { (void)rxPin; (void)txPin; begin(baud, format); }
+#endif
+
   virtual size_t write(const uint8_t *buffer, size_t size) = 0;
   virtual int    available(void) = 0;
   virtual int    read(void) = 0;

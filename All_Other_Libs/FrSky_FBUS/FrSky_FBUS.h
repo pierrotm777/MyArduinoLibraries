@@ -7,7 +7,7 @@
 class FrSky_FBUSClass : public Rcul {
 public:
   static constexpr uint32_t FBUS_BAUD = 460800;
-  static constexpr uint8_t  MAX_CHANNELS = 24;
+  static constexpr uint8_t  MAX_FBUS_CHANNELS = 24;
   static constexpr uint8_t  DEFAULT_CHANNELS = 16;
 
   enum CpuType : uint8_t {
@@ -124,7 +124,7 @@ private:
   Stream *_serial;
   HardwareSerial *_hwSerial;
 
-  uint16_t _channels[MAX_CHANNELS];
+  uint16_t _channels[MAX_FBUS_CHANNELS];
   uint8_t _channelCount;
   uint8_t _expectedChannels;
   bool _failsafe;

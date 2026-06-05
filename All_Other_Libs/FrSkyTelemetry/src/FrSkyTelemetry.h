@@ -15,7 +15,7 @@
 #define _FRSKY_TELEMETRY_H_
 
 #include "Arduino.h"
-#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__) && !defined(ARDUINO_ARCH_ESP32) && !defined(ESP32)
 #include "SoftwareSerial.h"
 #endif
 
@@ -46,6 +46,9 @@ class FrSkyTelemetry
 #elif defined(ARDUINO_TEENSY41)
     // 8 Serial port identifiers for Teensy 4.1 boards
     enum SerialId { SERIAL_USB = 0, SERIAL_1 = 1, SERIAL_2 = 2, SERIAL_3 = 3, SERIAL_4 = 4 , SERIAL_5 = 5 , SERIAL_6 = 6, SERIAL_7 = 7, SERIAL_8 = 8 };
+#elif defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+    // ESP32 / ESP32-S3 hardware UART identifiers
+    enum SerialId { SERIAL_1_S3 = 1, SERIAL_2_S3 = 2 };
 #else
     // Serial port identifiers for 328P/168 based boards
     enum SerialId { SOFT_SERIAL_PIN_2 = 2, SOFT_SERIAL_PIN_3 = 3, SOFT_SERIAL_PIN_4 = 4, SOFT_SERIAL_PIN_5 = 5, SOFT_SERIAL_PIN_6 = 6, SOFT_SERIAL_PIN_7 = 7,
@@ -53,6 +56,10 @@ class FrSkyTelemetry
 #endif
     // Start the telemetry on a given port/pin (use serialId enum to choose, chose the proper one depending on whether you use Teensy od 328P/168 based board)
     void begin(SerialId id);
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+    // ESP32 / ESP32-S3: choose UART and explicit RX/TX pins.
+    void begin(SerialId id, int8_t rxPin, int8_t txPin);
+#endif
     // NOTE: the set methods below do not need to be called on every loop - only when data changes
     // Set the FGS sensor data: fuel in percent
     void setFgsData(float fuel);
@@ -81,12 +88,12 @@ class FrSkyTelemetry
     uint32_t frame1Time;
     uint32_t frame2Time;
     uint32_t frame3Time;
-#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40)
-    Stream* port;
-#else
+#if defined(ARDUINO_TEENSY41) || defined(ARDUINO_TEENSY40) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
     HardwareSerial *port;
+#else
+    Stream* port;
 #endif
-#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__)
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__) && !defined(ARDUINO_ARCH_ESP32) && !defined(ESP32)
     SoftwareSerial* softSerial;
 #endif
     // FAS sensor

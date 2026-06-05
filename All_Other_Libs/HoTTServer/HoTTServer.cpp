@@ -1,9 +1,13 @@
 #include "HoTTServer.h"
 
-//SoftwareSerial swSerial(10,11);
-#define swSerial Serial3 //for test with Teensy 4.0
-
-HoTTServer::HoTTServer() {
+HoTTServer::HoTTServer()
+: _serial(nullptr),
+  _hwSerial(nullptr),
+  _baud(19200)
+#if defined(ARDUINO_ARCH_AVR) || defined(__AVR__)
+  , _swSerial(nullptr)
+#endif
+{
 	setWarning(HOTT_ALARM_NONE);
 }
 
@@ -11,11 +15,62 @@ void HoTTServer::registerModule(uint8_t module) {
 	bitSet(_registeredModules, module);
 }
 
-void HoTTServer::start() {
-	swSerial.begin(19200);
+void HoTTServer::start()
+{
+#if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41) || defined(__IMXRT1062__)
+	start(Serial3, 19200);
+#elif defined(HAVE_HWSERIAL3)
+	start(Serial3, 19200);
+#else
+	// No default Serial3 on this board.
+#endif
+}
+
+void HoTTServer::start(HardwareSerial &serial, uint32_t baud)
+{
+	_hwSerial = &serial;
+	_serial = &serial;
+	_baud = baud;
+	_hwSerial->begin(_baud);
+}
+
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+void HoTTServer::start(HardwareSerial &serial, int8_t rxPin, int8_t txPin, uint32_t baud)
+{
+	_hwSerial = &serial;
+	_serial = &serial;
+	_baud = baud;
+	_hwSerial->begin(_baud, SERIAL_8N1, rxPin, txPin);
+}
+#endif
+
+#if defined(ARDUINO_ARCH_AVR) || defined(__AVR__)
+void HoTTServer::start(uint8_t rxPin, uint8_t txPin, uint32_t baud)
+{
+	if (_swSerial)
+	{
+		delete _swSerial;
+		_swSerial = nullptr;
+	}
+
+	_swSerial = new SoftwareSerial(rxPin, txPin);
+	_swSerial->begin(baud);
+
+	_serial = _swSerial;
+	_hwSerial = nullptr;
+	_baud = baud;
+}
+#endif
+
+void HoTTServer::serialAttach(Stream &stream)
+{
+	_serial = &stream;
+	_hwSerial = nullptr;
 }
 
 void HoTTServer::_sendData(uint8_t *data, uint8_t size) {
+	if (!_serial) return;
+
 	// Checksum berechnen bei Binary Mode
 	if (size == 45) {
 		uint8_t sum = 0;
@@ -27,9 +82,9 @@ void HoTTServer::_sendData(uint8_t *data, uint8_t size) {
 
 	// Daten senden
 	for(int j = 0; j < size; j++){
-		swSerial.write(data[j]);
+		_serial->write(data[j]);
 		delay(2);
-		swSerial.read();
+		_serial->read();
 	}
 }
 
@@ -41,9 +96,11 @@ bool HoTTServer::_isModuleRegistered(uint8_t module) {
 }
 
 void HoTTServer::processRequest() {
-	if (swSerial.available() >= 2) {
-		uint8_t requestMode = swSerial.read();
-		uint8_t requestID = swSerial.read();
+	if (!_serial) return;
+
+	if (_serial->available() >= 2) {
+		uint8_t requestMode = _serial->read();
+		uint8_t requestID = _serial->read();
 
 		switch (requestMode) {
 			case HOTT_TEXT_MODE_REQUEST_ID:
@@ -667,7 +724,7 @@ void HoTTServer::setCurrent(HOTTCurrent_e sensorID, float current) {
 			current = constrain(current, 0.0, 25.5);
 			
 			_BECCurrent = current;
-			_maxBECCurrent = max(_maxBECCurrent, current);
+			_maxBECCurrent = max(_maxBECCurrent, (uint8_t)(current + 0.5f));
 			break;
 		case HOTT_MAX_MOTOR_CURRENT:
 			current = constrain(current, 0.0, 25.5);
@@ -768,15 +825,15 @@ void HoTTServer::setTemperature(HOTTTemperature_e temperatureID, int8_t temperat
 			break;
 		case HOTT_ESC_TEMPERATURE:
 			_ESCTemperature = temperature;
-			_maxESCTemperature = max(_maxESCTemperature, temperature);
+			_maxESCTemperature = max(_maxESCTemperature, (uint8_t)(temperature + 0.5f));
 			break;
 		case HOTT_BEC_TEMPERATURE:
 			_BECTemperature = temperature;
-			_maxBECTemperature = max(_maxBECTemperature, temperature);
+			_BECTemperature = max(_BECTemperature, (uint8_t)(temperature + 0.5f));
 			break;
 		case HOTT_MOTOR_TEMPERATURE:
 			_motorTemperature = temperature;
-			_maxMotorTemperature = max(_maxMotorTemperature, temperature);
+			_maxMotorTemperature = max(_maxMotorTemperature, (uint8_t)(temperature + 0.5f));
 			break;
 	}
 }

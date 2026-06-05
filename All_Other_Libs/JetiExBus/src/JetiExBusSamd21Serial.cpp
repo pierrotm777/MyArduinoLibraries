@@ -84,19 +84,19 @@ void JetiExBusSamd21Serial::begin(uint32_t baud, uint32_t format)
 /*******************************  default Pin usage and mapping ***************************************************
 
 Serial Interface	                                   Pad	                                           Protocol
-                  |         0		   |         1        |         2          |            3           |
+                  |         0		 |         1        |         2          |            3           |
 ALT-SERCOM0       |  PA04	 A1  - 	 |  PA05  A9  MISO  |  PA06  A10   MOSI  |   PA07    A8    SCK    |   SPI
 ALT-SERCOM2       |  PA08	 A4  SDA |  PA09  A5  SCL   |  PA10  A2    -     |   PA11    A3    -      |   I²C
-ALT-SERCOM4       |                |                  |  PB08  A6    RX    |   PB09    A7    TX     |   USART
-ALT-SERCOM1                                           |  PA30        SWCLK |   PA31          SWDIO  | 	SWD
+ALT-SERCOM4       |                  |                  |  PB08  A6    RX    |   PB09    A7    TX     |   USART
+ALT-SERCOM1                                             |  PA30        SWCLK |   PA31          SWDIO  | 	SWD
 
 *******************************************************************************************************************
 ************************************* we use it this way **********************************************************
 Serial Interface	                                   Pad	                                           Protocol
-                  |         0      |         1        |         2          |            3           |
+                  |         0        |         1        |         2          |            3           |
 ALT-SERCOM0       |  PA04	 A1  - 	 |  PA05  A9    -   |  PA06  A10  RX/TX  |   PA07    A8    -      |   USART
 ALT-SERCOM2       |  PA08	 A4  SDA |  PA09  A5  SCL   |  PA10  A2    -     |   PA11    A3    -      |   I²C
-ALT-SERCOM4       |                |                  |  PB08  A6    RX    |   PB09    A7    TX     |   USART
+ALT-SERCOM4       |                  |                  |  PB08  A6    RX    |   PB09    A7    TX     |   USART
 *******************************************************************************************************************/
 
   // Configure USART

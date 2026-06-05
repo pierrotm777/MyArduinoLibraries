@@ -56,6 +56,24 @@ void JetiExBusProtocol::Start(const char * name, JETISENSOR_CONST * pSensorArray
 	m_exFrameCnt = 0;
 }
 
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+void JetiExBusProtocol::Start(const char * name, JETISENSOR_CONST * pSensorArray, int comPort, int8_t rxPin, int8_t txPin)
+{
+	// init jetibox text memory
+	memset(m_textBuffer, ' ', sizeof(m_textBuffer));
+
+	// init EX protocol handler
+	JetiExProtocolBuf::Init(name, pSensorArray);
+
+	// init EX bus serial port with explicit ESP32/S3 pins
+	m_pSerial = JetiExBusSerial::CreatePort( comPort );
+	m_pSerial->begin( 125000, SERIAL_8N1, rxPin, txPin );
+
+	ResetPacket();
+	m_exFrameCnt = 0;
+}
+#endif
+
 
 uint16_t JetiExBusProtocol::GetChannel(uint8_t nChannel)
 {

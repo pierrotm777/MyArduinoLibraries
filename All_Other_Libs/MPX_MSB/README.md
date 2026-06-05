@@ -133,7 +133,7 @@ The **MSRC Multiplex telemetry code** by *laneboysrc* provides a full, feature-r
 This wrapper, `Mpx_Msb`, was created to simplify usage in typical RC/Arduino projects:
 - Direct setters (`sendVbat`, `sendTmp1`, `sendTmp2`).  
 - Easy digital alarms (`addAlarmDigital`).  
-- Retains full control through `raw()`.
+- Fully compatible with the original MSRC telemetry API for advanced control.
 
 This version was **designed together with ChatGPT**, starting from MSRC’s codebase, to be easier and faster to use for hobbyists.
 
@@ -143,7 +143,7 @@ This version was **designed together with ChatGPT**, starting from MSRC’s code
 
 - Multiplex RX-9-DR receiver  
 - Teensy 4.0 board  
-- Arduino Pro Mini (compatibility test only)
+- Arduino Atmega2560, Pro Micro (not tested)
 
 ---
 

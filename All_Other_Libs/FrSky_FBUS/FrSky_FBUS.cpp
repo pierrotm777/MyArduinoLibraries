@@ -25,7 +25,7 @@ FrSky_FBUSClass::FrSky_FBUSClass(void)
   _lengthErrors(0),
   _typeErrors(0)
 {
-  for (uint8_t i = 0; i < MAX_CHANNELS; i++) {
+  for (uint8_t i = 0; i < MAX_FBUS_CHANNELS; i++) {
     _channels[i] = 0;
   }
 }
@@ -303,7 +303,7 @@ bool FrSky_FBUSClass::decodeRcFrame(const uint8_t *payload, uint8_t payloadLen)
   for (uint8_t i = 0; i < count; i++) {
     _channels[i] = decode11Bit(payload, (uint16_t)i * 11);
   }
-  for (uint8_t i = count; i < MAX_CHANNELS; i++) {
+  for (uint8_t i = count; i < MAX_FBUS_CHANNELS; i++) {
     _channels[i] = 0;
   }
 
@@ -379,13 +379,13 @@ uint8_t FrSky_FBUSClass::channelCount() const { return _channelCount; }
 
 uint16_t FrSky_FBUSClass::channelRaw(uint8_t index) const
 {
-  if (index >= _channelCount || index >= MAX_CHANNELS) return 0;
+  if (index >= _channelCount || index >= MAX_FBUS_CHANNELS) return 0;
   return _channels[index];
 }
 
 uint16_t FrSky_FBUSClass::channelUs(uint8_t index) const
 {
-  if (index >= _channelCount || index >= MAX_CHANNELS) return 0;
+  if (index >= _channelCount || index >= MAX_FBUS_CHANNELS) return 0;
   return rawToUs(_channels[index]);
 }
 

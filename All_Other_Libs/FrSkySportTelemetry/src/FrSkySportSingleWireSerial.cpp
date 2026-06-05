@@ -1,16 +1,24 @@
 /*
-  FrSky single wire serial class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  FrSky single wire serial class for Teensy LC/3.x/4.x, ESP32, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
   (c) Pawelsky 20250412
   Not for commercial use
 */
 
 #include "FrSkySportSingleWireSerial.h"
 
+#if defined(ESP32_HW)
+  #include "driver/uart.h"
+#endif
+
 FrSkySportSingleWireSerial::FrSkySportSingleWireSerial()
 {
   port = NULL;
 #if defined(TEENSY_HW)
   uartCtrl = NULL;
+#elif defined(ESP32_HW)
+  hwSerial = NULL;
+  rxPin = -1;
+  txPin = -1;
 #else
   softSerial = NULL;
 #endif
@@ -40,6 +48,23 @@ void FrSkySportSingleWireSerial::initTeensySerial(SerialId id, HardwareSerial *s
 #endif
   }
 }
+#elif defined(ESP32_HW)
+void FrSkySportSingleWireSerial::initEsp32Serial(SerialId id, HardwareSerial *serial, int8_t rx, int8_t tx)
+{
+  serialId = id;
+  port = serial;
+  hwSerial = serial;
+  rxPin = rx;
+  txPin = tx;
+
+  // ESP32 / ESP32-S3 S.PORT notes:
+  // - Normal S.PORT is inverted UART at 57600 bauds. Use SERIAL_x_S3.
+  // - SERIAL_x_S3_EXTINV is only for an EXTERNAL inverter / normal UART level.
+  // - S.PORT is single-wire and shared by the receiver and all sensors.
+  //   The ESP32 UART TX output must not keep driving the line while we listen.
+  setMode(RX);
+}
+
 #else 
 void FrSkySportSingleWireSerial::initTwoWireSerial(SerialId id, HardwareSerial *serial)
 {
@@ -87,6 +112,11 @@ void FrSkySportSingleWireSerial::begin(SerialId id)
   else if((id == SERIAL_6) || (id == SERIAL_6_EXTINV)) initTeensySerial(id, &Serial6, &UART5_C3, &UART5_C1);
 #endif
 #endif
+#elif defined(ESP32_HW)
+  // ESP32-S3 needs explicit pins. Use begin(id, rxPin, txPin).
+  // This fallback uses Arduino core default pins if available.
+  if((id == SERIAL_1_S3) || (id == SERIAL_1_S3_EXTINV)) initEsp32Serial(id, &Serial1, -1, -1);
+  else if((id == SERIAL_2_S3) || (id == SERIAL_2_S3_EXTINV)) initEsp32Serial(id, &Serial2, -1, -1);
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
   if(id == SERIAL_EXTINV) initTwoWireSerial(id, &Serial);
 #if defined(__AVR_ATmega2560__)
@@ -96,11 +126,23 @@ void FrSkySportSingleWireSerial::begin(SerialId id)
 #endif
   else initSoftSerial(id); 
 #else
-  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
+  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP32/ESP32-S3, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
 #endif
   crc = 0;
   setMode(RX);
 }
+
+
+#if defined(ESP32_HW)
+void FrSkySportSingleWireSerial::begin(SerialId id, int8_t rx, int8_t tx)
+{
+  if((id == SERIAL_1_S3) || (id == SERIAL_1_S3_EXTINV)) initEsp32Serial(id, &Serial1, rx, tx);
+  else if((id == SERIAL_2_S3) || (id == SERIAL_2_S3_EXTINV)) initEsp32Serial(id, &Serial2, rx, tx);
+
+  crc = 0;
+  setMode(RX);
+}
+#endif
 
 void FrSkySportSingleWireSerial::setMode(SerialMode mode)
 {
@@ -110,6 +152,36 @@ void FrSkySportSingleWireSerial::setMode(SerialMode mode)
     if(mode == TX) *uartCtrl |= UART_CTRL_TXDIR_FLAG;
     else if(mode == RX) *uartCtrl &= ~UART_CTRL_TXDIR_FLAG;
   }
+#elif defined(ESP32_HW)
+  if(hwSerial != NULL)
+  {
+    const bool invert = ((serialId & EXTINV_FLAG) != EXTINV_FLAG);
+
+    // Critical for FrSky S.PORT on ESP32/S3:
+    // do not leave TX enabled while waiting for receiver polls.
+    // Reconfiguring the UART is slower than Teensy register TXDIR,
+    // but it reliably releases the single-wire bus on ESP32 cores.
+    hwSerial->flush();
+    hwSerial->end();
+
+    if(mode == TX)
+    {
+      if(txPin >= 0)
+      {
+        pinMode(txPin, OUTPUT);
+        hwSerial->begin(57600, SERIAL_8N1, -1, txPin, invert);
+      }
+    }
+    else // RX
+    {
+      if(txPin >= 0) pinMode(txPin, INPUT);   // release S.PORT bus
+      if(rxPin >= 0)
+      {
+        pinMode(rxPin, INPUT);
+        hwSerial->begin(57600, SERIAL_8N1, rxPin, -1, invert);
+      }
+    }
+  }
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
   if((port != NULL) && ((serialId & EXTINV_FLAG) != EXTINV_FLAG))
   {
@@ -117,7 +189,7 @@ void FrSkySportSingleWireSerial::setMode(SerialMode mode)
     else if(mode == RX) pinMode(serialId, INPUT);
   }
 #else
-  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
+  #error "Unsupported processor! Only Teensy LC/3.x/4.x, ESP32/ESP32-S3, ESP8266, ATmega2560 and ATmega328P based boards are supported.";
 #endif
 }
 

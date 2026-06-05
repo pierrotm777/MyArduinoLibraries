@@ -28,6 +28,10 @@
 #define HoTTServer_h HoTTServer_h
 
 #include "Arduino.h"
+
+#if defined(ARDUINO_ARCH_AVR) || defined(__AVR__)
+#include <SoftwareSerial.h>
+#endif
 //#include "SoftwareSerial.h"
 
 // Protocoll definitions
@@ -243,6 +247,15 @@ private:
 	uint8_t _homeDirection;
 	
 	uint8_t _registeredModules;
+
+	// Portable serial backend, available on AVR, Teensy, ESP32, Mega, etc.
+	Stream *_serial;
+	HardwareSerial *_hwSerial;
+	uint32_t _baud;
+
+#if defined(ARDUINO_ARCH_AVR) || defined(__AVR__)
+	SoftwareSerial *_swSerial;
+#endif
 	
 	void _sendData(uint8_t *data, uint8_t size);
 	bool _isModuleRegistered(uint8_t module);
@@ -251,7 +264,28 @@ public:
 	HoTTServer();
 	
 	void registerModule(uint8_t module);
+
+	// Default start.
+	// On Teensy 4.x, keeps old Serial3 behavior.
 	void start();
+
+	// HardwareSerial backend: Teensy, Mega, ESP32 with already fixed/default pins.
+	void start(HardwareSerial &serial, uint32_t baud = 19200);
+
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+	// ESP32/ESP32-S3 backend with explicit RX/TX pins.
+	// Use -1 for an unused pin.
+	void start(HardwareSerial &serial, int8_t rxPin, int8_t txPin, uint32_t baud = 19200);
+#endif
+
+#if defined(ARDUINO_ARCH_AVR) || defined(__AVR__)
+	// AVR 8-bit backend using SoftwareSerial.
+	void start(uint8_t rxPin, uint8_t txPin, uint32_t baud = 19200);
+#endif
+
+	// Attach an already configured stream.
+	void serialAttach(Stream &stream);
+
 	void processRequest();
 	
 	void setWarning(HOTTAlarm_e warningID);

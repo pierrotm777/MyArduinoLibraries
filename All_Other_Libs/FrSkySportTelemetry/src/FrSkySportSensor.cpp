@@ -1,5 +1,5 @@
 /*
-  FrSky sensor base class for Teensy LC/3.x/4.x, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
+  FrSky sensor base class for Teensy LC/3.x/4.x, ESP32, ESP8266, ATmega2560 (Mega) and ATmega328P based boards (e.g. Pro Mini, Nano, Uno)
   (c) Pawelsky 20210509
   Not for commercial use
 */

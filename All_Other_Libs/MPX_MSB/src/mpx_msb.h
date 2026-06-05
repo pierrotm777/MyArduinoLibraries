@@ -34,6 +34,13 @@ class Mpx_Msb {
 public:
   void begin(HardwareSerial &ser, uint32_t baud = 38400);
 
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+  void begin(HardwareSerial &ser,
+             int8_t rxPin,
+             int8_t txPin,
+             uint32_t baud = 38400);
+#endif
+
   // Map addresses (0..15). Default: V=3, T1=6, T2=7
   void mapVbatAddr(uint8_t addr)  { _addrV = (addr & 0x0F); }
   void mapTemp1Addr(uint8_t addr) { _addrT1 = (addr & 0x0F); }

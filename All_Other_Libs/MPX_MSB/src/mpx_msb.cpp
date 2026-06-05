@@ -9,6 +9,17 @@ void Mpx_Msb::begin(HardwareSerial &ser, uint32_t baud){
   _daCount = 0;
 }
 
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+void Mpx_Msb::begin(HardwareSerial &ser,
+                    int8_t rxPin,
+                    int8_t txPin,
+                    uint32_t baud){
+  _ser = &ser;
+  _ser->begin(baud, SERIAL_8N1, rxPin, txPin);
+  _daCount = 0;
+}
+#endif
+
 void Mpx_Msb::addAlarmDigital(uint8_t pin, uint8_t addr, uint8_t classId,
                               bool activeLow, bool usePullup,
                               float onValue, float offValue, float scale){
@@ -133,9 +144,15 @@ void Mpx_Msb::poll(){
   if (!_ser) return;
   while (_ser->available()){
     uint8_t poll = (uint8_t)_ser->read();
-    // Respect small idle before answering (lets the line settle)
-    elapsedMicros em = 0;
-    while ((uint32_t)em < _idleUs) { /* spin */ }
+
+    // Respect a small idle delay before answering.
+    // Use micros() instead of elapsedMicros so the code remains portable
+    // across AVR, Teensy, ESP32 and other Arduino-compatible platforms.
+    uint32_t startUs = micros();
+    while ((uint32_t)(micros() - startUs) < _idleUs) {
+      /* spin */
+    }
+
     replyIfAsked((uint8_t)(poll & 0x0F));
   }
 }

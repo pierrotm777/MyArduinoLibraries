@@ -58,6 +58,18 @@ public:
 		uartDetachTx();
 	}
 
+	void begin(unsigned long baud, uint32_t config, int8_t rxPin, int8_t txPin)
+	{
+		HardwareSerial::begin(baud, config, rxPin, txPin);
+		m_txPin = txPin;
+		uartDetachTx();
+	}
+
+	void setTxPin(int8_t txPin)
+	{
+		m_txPin = txPin;
+	}
+
     // see ...\Arduino\hardware\espressif\esp32\cores\esp32\esp32-hal-uart.c
 	void uartDetachTx()
 	{
@@ -93,6 +105,7 @@ public:
 	JetiExBusESP32Serial(int comPort = 2);
 
 	virtual void   begin(uint32_t baud, uint32_t format){ m_pSerial->begin(baud, format); }
+	void           begin(uint32_t baud, uint32_t format, int8_t rxPin, int8_t txPin){ m_pSerial->begin(baud, format, rxPin, txPin); }
 	virtual size_t write(const uint8_t *buffer, size_t size);
 	virtual int    available(void) { return m_pSerial->available(); }
 	virtual int    read(void) { return m_pSerial->read(); }

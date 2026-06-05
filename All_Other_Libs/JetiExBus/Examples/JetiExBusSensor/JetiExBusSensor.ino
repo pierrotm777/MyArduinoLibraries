@@ -91,7 +91,7 @@ void setup()
 		;
 
 	exBus.SetDeviceId(0x76, 0x32); // 0x3276
-	exBus.Start("EX Bus", sensors, 2 ); // com port: 1..3 for Teeny, 0 or 1 for AtMega328PB UART0/UART1, others: not used 
+	exBus.Start("EX Bus", sensors, 2, -1, UART_TX2);// com port: 1..3 for Teeny, 1 or 2 for ESP32 S3, 0 or 1 for AtMega328PB UART0/UART1, others: not used 
 
 	exBus.SetJetiboxText(0, "Line1");
 	exBus.SetJetiboxText(1, "Line2");

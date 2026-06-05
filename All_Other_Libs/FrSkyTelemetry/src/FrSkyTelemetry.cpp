@@ -11,7 +11,13 @@ At the moment, SERIAL_USB can't be used
 
 #include "FrSkyTelemetry.h"
 
-FrSkyTelemetry::FrSkyTelemetry() : enabledSensors(SENSOR_NONE), cellIdx(0), frame1Time(0), frame2Time(0), frame3Time(0) {}
+FrSkyTelemetry::FrSkyTelemetry() : enabledSensors(SENSOR_NONE), cellIdx(0), frame1Time(0), frame2Time(0), frame3Time(0)
+{
+  port = NULL;
+#if !defined(ARDUINO_TEENSY41) && !defined(ARDUINO_TEENSY40) && !defined(__MK20DX128__) && !defined(__MK20DX256__) && !defined(__MKL26Z64__) && !defined(__MK66FX1M0__) && !defined(__MK64FX512__) && !defined(ARDUINO_ARCH_ESP32) && !defined(ESP32)
+  softSerial = NULL;
+#endif
+}
 
 // Add code for T4.x - Pete El_Supremo
 // Teensy 4.0 has 7 Serial ports. Teensy 4.1 has 8
@@ -81,6 +87,16 @@ void FrSkyTelemetry::begin(FrSkyTelemetry::SerialId id)
     UART5_C3 = 0x10;  // Invert Serial6 Tx levels
   }
 #endif
+#elif defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+  // ESP32 / ESP32-S3 without explicit pins.
+  // Prefer begin(id, rxPin, txPin) on ESP32-S3.
+  if(id == SERIAL_1_S3) {
+    port = &Serial1;
+    Serial1.begin(9600, SERIAL_8N1);
+  } else if(id == SERIAL_2_S3) {
+    port = &Serial2;
+    Serial2.begin(9600, SERIAL_8N1);
+  }
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega168__)
   if(softSerial != NULL) {
     delete softSerial;
@@ -91,9 +107,22 @@ void FrSkyTelemetry::begin(FrSkyTelemetry::SerialId id)
   softSerial->begin(9600);
   pinMode(id, OUTPUT);
 #else
-#error "Unsupported processor! Only Teensy 4.1, 4.0, 3.x and 328P/168 based processors supported.";
+#error "Unsupported processor! Only Teensy 4.1, 4.0, 3.x, ESP32/S3 and 328P/168 based processors supported.";
 #endif
 }
+
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+void FrSkyTelemetry::begin(FrSkyTelemetry::SerialId id, int8_t rxPin, int8_t txPin)
+{
+  if(id == SERIAL_1_S3) {
+    port = &Serial1;
+    Serial1.begin(9600, SERIAL_8N1, rxPin, txPin);
+  } else if(id == SERIAL_2_S3) {
+    port = &Serial2;
+    Serial2.begin(9600, SERIAL_8N1, rxPin, txPin);
+  }
+}
+#endif
 
 void FrSkyTelemetry::setFgsData(float fuel)
 {
