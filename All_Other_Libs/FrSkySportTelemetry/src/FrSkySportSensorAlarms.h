@@ -72,7 +72,7 @@ class FrSkySportSensorAlarms : public FrSkySportSensor
 	uint32_t alarmDataTime7;
 	uint32_t alarmDataTime8;
 	
-    uint8_t alarm[6];
+    uint8_t alarm[8];
 
 };
 
