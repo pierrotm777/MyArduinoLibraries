@@ -16,35 +16,60 @@ VoiceId	KEYWORD1
 #######################################
 
 begin	KEYWORD2
+end	KEYWORD2
+
 setMasterVolume	KEYWORD2
 
 playFx	KEYWORD2
 playFxStream	KEYWORD2
 playFxAuto	KEYWORD2
+playFxRepeat	KEYWORD2
+playFxRepeatStream	KEYWORD2
+playFxRepeatAuto	KEYWORD2
 stopFx	KEYWORD2
 stopAllFx	KEYWORD2
 
 playVoice	KEYWORD2
 playVoiceStream	KEYWORD2
 playVoiceRepeat	KEYWORD2
+playVoiceStreamRepeat	KEYWORD2
 playVoiceThen	KEYWORD2
 playVoiceQueue	KEYWORD2
 stopVoice	KEYWORD2
+requestVoiceStop	KEYWORD2
 stop	KEYWORD2
+
+preloadFxCache	KEYWORD2
+clearFxCache	KEYWORD2
 
 preloadEngineLoop	KEYWORD2
 playPreloadedEngineLoop	KEYWORD2
+enginePlayLoop	KEYWORD2
 engineSetPitch	KEYWORD2
 engineSetVolume	KEYWORD2
+engineGenericStop	KEYWORD2
 engineStop	KEYWORD2
 
+ambientPlayLoop	KEYWORD2
 ambientStop	KEYWORD2
+ambientSetVolume	KEYWORD2
+
+setVoicePitch	KEYWORD2
+setVoiceVolume	KEYWORD2
+fadeVoice	KEYWORD2
+fadeOutAndStop	KEYWORD2
+duckVoice	KEYWORD2
+unduckVoice	KEYWORD2
+duck	KEYWORD2
+unduck	KEYWORD2
 
 isPlaying	KEYWORD2
 positionMillis	KEYWORD2
 lengthMillis	KEYWORD2
 remainingMillis	KEYWORD2
 inWindow	KEYWORD2
+isVoiceQueueDone	KEYWORD2
+printVoicesStatus	KEYWORD2
 
 streamTick	KEYWORD2
 chainTick	KEYWORD2
@@ -55,7 +80,9 @@ chainTick	KEYWORD2
 
 VOICE_ENGINE	LITERAL1
 VOICE_AMBIENT	LITERAL1
+VOICE_ANCHOR	LITERAL1
 VOICE_FX0	LITERAL1
 VOICE_FX1	LITERAL1
 VOICE_FX2	LITERAL1
 VOICE_FX3	LITERAL1
+VOICE_COUNT	LITERAL1

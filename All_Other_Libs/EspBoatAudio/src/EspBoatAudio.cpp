@@ -103,6 +103,12 @@ bool EspBoatAudio::begin(uint8_t bclk,
   for (uint8_t i = 0; i < VOICE_COUNT; i++) {
     resetVoiceRuntime(voices[i]);
   }
+  
+  activeEngineVoice = VOICE_ENGINE_A;
+  inactiveEngineVoice = VOICE_ENGINE_B;
+
+  activeAmbientVoice = VOICE_AMBIENT_A;
+  inactiveAmbientVoice = VOICE_AMBIENT_B;
 
   resetVoiceRuntime(preloadedEngine);
   preloadedEngineValid = false;
@@ -421,28 +427,21 @@ void EspBoatAudio::chainTick()
       AudioHandle h;
       bool ok = false;
 
-      // -------------------------------------------------------------
-      // PRELOADED ENGINE
-      // -------------------------------------------------------------
-      if ((VoiceId)id == VOICE_ENGINE &&
+      if (((VoiceId)id == VOICE_ENGINE_A || (VoiceId)id == VOICE_ENGINE_B) &&
           strcmp(next.path, "@PRELOADED_ENGINE") == 0)
       {
-        h = playPreloadedEngineLoop(true);
+        activeEngineVoice = (VoiceId)id;
+        inactiveEngineVoice = ((VoiceId)id == VOICE_ENGINE_A) ? VOICE_ENGINE_B : VOICE_ENGINE_A;
 
+        h = playPreloadedEngineLoop(true);
         ok = h.valid();
 
-        // IMPORTANT :
-        // appliquer le volume/pitch du QueueItem JSON
         if (ok)
         {
-          setVoiceVolume(VOICE_ENGINE, next.volume);
-          setVoicePitch(VOICE_ENGINE, next.pitch);
+          setVoiceVolume(activeEngineVoice, next.volume);
+          setVoicePitch(activeEngineVoice, next.pitch);
         }
       }
-
-      // -------------------------------------------------------------
-      // NORMAL WAV
-      // -------------------------------------------------------------
       else
       {
         h = playVoiceRepeat(
@@ -461,7 +460,7 @@ void EspBoatAudio::chainTick()
       xSemaphoreTake(renderMutex, portMAX_DELAY);
       xSemaphoreTake(mutex, portMAX_DELAY);
 
-      Voice& v2 = voices[id];
+      Voice& v2 = voices[h.valid() ? h.voice : id];
 
       v2.queueCount = savedCount;
       v2.queueIndex = savedIndex;
@@ -488,19 +487,23 @@ void EspBoatAudio::chainTick()
 }
 
 bool EspBoatAudio::enginePlayLoop(const char* path) {
-  return playVoice(VOICE_ENGINE, path, true, 1.0f, 1.0f, 255).valid();
+  return playVoice(activeEngineVoice, path, true, 1.0f, 1.0f, 255).valid();
 }
 
 void EspBoatAudio::engineStop() {
-  stopVoice(VOICE_ENGINE);
+  stopVoice(VOICE_ENGINE_A);
+  stopVoice(VOICE_ENGINE_B);
+
+  activeEngineVoice = VOICE_ENGINE_A;
+  inactiveEngineVoice = VOICE_ENGINE_B;
 }
 
 void EspBoatAudio::engineSetPitch(float pitch) {
-  setVoicePitch(VOICE_ENGINE, pitch);
+  setVoicePitch(activeEngineVoice, pitch);
 }
 
 void EspBoatAudio::engineSetVolume(float volume) {
-  setVoiceVolume(VOICE_ENGINE, volume);
+  setVoiceVolume(activeEngineVoice, volume);
 }
 
 void EspBoatAudio::engineGenericStop(uint32_t durationMs, float targetPitch) {
@@ -509,7 +512,8 @@ void EspBoatAudio::engineGenericStop(uint32_t durationMs, float targetPitch) {
   xSemaphoreTake(renderMutex, portMAX_DELAY);
   xSemaphoreTake(mutex, portMAX_DELAY);
 
-  Voice& v = voices[VOICE_ENGINE];
+  Voice& v = voices[activeEngineVoice];
+
   if (v.active) {
     startFadeNoLock(v, 0.0f, durationMs, true);
     startPitchFadeNoLock(v, targetPitch, durationMs);
@@ -520,15 +524,19 @@ void EspBoatAudio::engineGenericStop(uint32_t durationMs, float targetPitch) {
 }
 
 bool EspBoatAudio::ambientPlayLoop(const char* path) {
-  return playVoiceStream(VOICE_AMBIENT, path, true, 1.0f, 1.0f, 200).valid();
+  return playVoiceStream(activeAmbientVoice, path, true, 1.0f, 1.0f, 200).valid();
 }
 
 void EspBoatAudio::ambientStop() {
-  stopVoice(VOICE_AMBIENT);
+  stopVoice(VOICE_AMBIENT_A);
+  stopVoice(VOICE_AMBIENT_B);
+
+  activeAmbientVoice = VOICE_AMBIENT_A;
+  inactiveAmbientVoice = VOICE_AMBIENT_B;
 }
 
 void EspBoatAudio::ambientSetVolume(float volume) {
-  setVoiceVolume(VOICE_AMBIENT, volume);
+  setVoiceVolume(activeAmbientVoice, volume);
 }
 
 EspBoatAudio::AudioHandle EspBoatAudio::playFx(const char* path,
@@ -749,43 +757,36 @@ EspBoatAudio::AudioHandle EspBoatAudio::playFxRepeatStream(const char* path,
     false
   );
 }
-
 EspBoatAudio::AudioHandle EspBoatAudio::playFxRepeatAuto(const char* path,
                                                          uint8_t playCount,
                                                          float volume,
                                                          uint8_t priority,
-                                                         float pitch) {
+                                                         float pitch)
+{
   AudioHandle h;
 
-  if (!path || !sdMutex) return h;
+  if (!path || !sdMutex)
+    return h;
 
   SdFile f;
   Voice info;
   resetVoiceRuntime(info);
 
   xSemaphoreTake(sdMutex, portMAX_DELAY);
+
   bool ok = f.open(path, O_RDONLY);
-  uint32_t size = ok ? f.fileSize() : 0;
   bool parsed = ok ? parseWav(f, info) : false;
-  if (ok) f.close();
+
+  if (ok)
+    f.close();
+
   xSemaphoreGive(sdMutex);
 
-  if (!ok || !parsed) return h;
+  if (!ok || !parsed)
+    return h;
 
-  const uint32_t PCM_RAM_LIMIT   = 200UL * 1024UL;
-  const uint32_t ADPCM_RAM_LIMIT = 512UL * 1024UL;
-
-  if (info.codec == CODEC_IMA_ADPCM) {
-    if (size <= ADPCM_RAM_LIMIT) {
-      return playFxRepeat(path, playCount, volume, priority, pitch);
-    }
-
-    return playFxRepeatStream(path, playCount, volume, priority, pitch);
-  }
-
-  if (size <= PCM_RAM_LIMIT) {
+  if (canCacheSound(info.dataSize, info.codec, false))
     return playFxRepeat(path, playCount, volume, priority, pitch);
-  }
 
   return playFxRepeatStream(path, playCount, volume, priority, pitch);
 }
@@ -861,36 +862,26 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoiceQueue(
       firstRepeat = 1;
     }
 
-    // -------------------------------------------------------------
-    // PRELOADED ENGINE
-    // -------------------------------------------------------------
-    if (id == VOICE_ENGINE &&
-        strcmp(items[startIndex].path,
-               "@PRELOADED_ENGINE") == 0)
+    if ((id == VOICE_ENGINE_A || id == VOICE_ENGINE_B || id == VOICE_ENGINE) &&
+        strcmp(items[startIndex].path, "@PRELOADED_ENGINE") == 0)
     {
-      h = playPreloadedEngineLoop(false);
+      if (id == VOICE_ENGINE_A || id == VOICE_ENGINE) {
+        activeEngineVoice = VOICE_ENGINE_A;
+        inactiveEngineVoice = VOICE_ENGINE_B;
+      } else {
+        activeEngineVoice = VOICE_ENGINE_B;
+        inactiveEngineVoice = VOICE_ENGINE_A;
+      }
 
+      h = playPreloadedEngineLoop(false);
       started = h.valid();
 
-      // IMPORTANT :
-      // appliquer le volume/pitch du QueueItem JSON
       if (started)
       {
-        setVoiceVolume(
-          VOICE_ENGINE,
-          items[startIndex].volume
-        );
-
-        setVoicePitch(
-          VOICE_ENGINE,
-          items[startIndex].pitch
-        );
+        setVoiceVolume(activeEngineVoice, items[startIndex].volume);
+        setVoicePitch(activeEngineVoice, items[startIndex].pitch);
       }
     }
-
-    // -------------------------------------------------------------
-    // NORMAL WAV
-    // -------------------------------------------------------------
     else
     {
       h = playVoiceRepeat(
@@ -920,7 +911,7 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoiceQueue(
   xSemaphoreTake(renderMutex, portMAX_DELAY);
   xSemaphoreTake(mutex, portMAX_DELAY);
 
-  Voice& v = voices[id];
+  Voice& v = voices[h.voice];
 
   v.queueCount = count;
   v.queueIndex = startIndex + 1;
@@ -961,9 +952,7 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoiceQueue(
     v.queue[i].priority = items[i].priority;
   }
 
-  for (uint8_t i = count;
-       i < VOICE_QUEUE_MAX;
-       i++)
+  for (uint8_t i = count; i < VOICE_QUEUE_MAX; i++)
   {
     v.queue[i].path[0] = 0;
     v.queue[i].loop = false;
@@ -1067,7 +1056,7 @@ EspBoatAudio::AudioHandle EspBoatAudio::playPreloadedEngineLoop(bool keepGenerat
   xSemaphoreTake(renderMutex, portMAX_DELAY);
   xSemaphoreTake(mutex, portMAX_DELAY);
 
-  Voice& v = voices[VOICE_ENGINE];
+  Voice& v = voices[activeEngineVoice];
 
   uint32_t oldGeneration = v.generation;
 
@@ -1104,10 +1093,9 @@ EspBoatAudio::AudioHandle EspBoatAudio::playPreloadedEngineLoop(bool keepGenerat
 
   v.buffer = preloadedEngine.buffer;
   v.ownsBuffer = false;
-  
+
   strncpy(v.currentPath, "@PRELOADED_ENGINE", sizeof(v.currentPath) - 1);
   v.currentPath[sizeof(v.currentPath) - 1] = 0;
-  
 
   if (v.codec == CODEC_IMA_ADPCM) {
     v.decodedBlock = allocAdpcmDecodeBlock(
@@ -1131,7 +1119,7 @@ EspBoatAudio::AudioHandle EspBoatAudio::playPreloadedEngineLoop(bool keepGenerat
   }
 
   AudioHandle h;
-  h.voice = VOICE_ENGINE;
+  h.voice = activeEngineVoice;
   h.generation = v.generation;
 
   xSemaphoreGive(mutex);
@@ -1144,16 +1132,24 @@ void EspBoatAudio::printVoicesStatus()
   if (!mutex || !renderMutex)
     return;
 
-  static const char* voiceNames[] =
-  {
-    "ENGINE",
-    "AMBIENT",
-    "ANCHOR",
-    "FX0",
-    "FX1",
-    "FX2",
-    "FX3"
-  };
+static const char* voiceNames[] =
+{
+  "ENGINE_A",
+  "ENGINE_B",
+  "AMBI_A",
+  "AMBI_B",
+  "BRIDGE",
+  "RAIN",
+  "THUNDER",  
+  "RANDOM_A",
+  "RANDOM_B",
+  "ANCHOR",
+  "ALARM",
+  "FX0",
+  "FX1",
+  "FX2",
+  "FX3"
+};
 
   Serial.println(F("─────── AUDIO VOICES ───────"));
 
@@ -1164,9 +1160,17 @@ void EspBoatAudio::printVoicesStatus()
   {
     Voice& v = voices[i];
 
-    Serial.printf("%-7s : %s",
+    Serial.printf("%-8s : %s",
                   voiceNames[i],
                   v.active ? "ON " : "OFF");
+
+    if (i == activeEngineVoice) {
+      //Serial.print(" [ACTIVE_ENGINE]");
+    }
+
+    if (i == activeAmbientVoice) {
+      //Serial.print(" [ACTIVE_AMBIENT]");
+    }
 
     if (v.active)
     {
@@ -1192,6 +1196,7 @@ void EspBoatAudio::printVoicesStatus()
 
   Serial.println(F("────────────────────────────"));
 }
+
 void EspBoatAudio::stopFx(uint8_t fxIndex) {
   if (fxIndex > 3) return;
   stopVoice((VoiceId)(VOICE_FX0 + fxIndex));
@@ -1226,29 +1231,35 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoice(VoiceId id,
   loaded.baseVolume = loaded.volume;
   loaded.pitch = constrain(pitch, 0.10f, 4.0f);
 
-  int8_t cacheIndex = findFxCache(path);
+CachedFx* cached = findCachedSound(path);
 
-  if (cacheIndex >= 0) {
-    CachedFx& c = fxCache[cacheIndex];
+//Serial.printf("[PLAY] %s -> %s\r\n",
+ //             path,
+    //          cached ? "CACHE" : "SD");
 
-    loaded.buffer = c.buffer;
-    loaded.ownsBuffer = false;
-    loaded.dataSize = c.dataSize;
-    loaded.totalFrames = c.totalFrames;
-    loaded.bytesPerFrame = c.bytesPerFrame;
-    loaded.wavBlockAlign = c.wavBlockAlign;
-    loaded.adpcmSamplesPerBlock = c.adpcmSamplesPerBlock;
-    loaded.sampleRate = c.sampleRate;
-    loaded.stereo = c.stereo;
-    loaded.codec = c.codec;
-  } else {
-    if (!openWav(loaded, path)) {
-      freeVoiceBuffer(loaded);
-      return AudioHandle{};
-    }
-
-    loaded.ownsBuffer = true;
+if (cached)
+{
+  loaded.buffer = cached->buffer;
+  loaded.ownsBuffer = false;
+  loaded.dataSize = cached->dataSize;
+  loaded.totalFrames = cached->totalFrames;
+  loaded.bytesPerFrame = cached->bytesPerFrame;
+  loaded.wavBlockAlign = cached->wavBlockAlign;
+  loaded.adpcmSamplesPerBlock = cached->adpcmSamplesPerBlock;
+  loaded.sampleRate = cached->sampleRate;
+  loaded.stereo = cached->stereo;
+  loaded.codec = cached->codec;
+}
+else
+{
+  if (!openWav(loaded, path))
+  {
+    freeVoiceBuffer(loaded);
+    return AudioHandle{};
   }
+
+  loaded.ownsBuffer = true;
+}
 
   if (loaded.codec == CODEC_IMA_ADPCM) {
     if (loaded.stereo || loaded.adpcmSamplesPerBlock == 0 || loaded.wavBlockAlign == 0) {
@@ -1363,12 +1374,77 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoiceRepeat(VoiceId id,
 
   return h;
 }
+void EspBoatAudio::setPsramProfile(PsramProfile profile)
+{
+  psramProfile = profile;
 
-int8_t EspBoatAudio::findFxCache(const char* path) {
-  if (!path) return -1;
+  Serial.printf("[AUDIO] PSRAM profile = %s\r\n",
+                profile == PSRAM_PROFILE_8MB ? "8MB" : "2MB");
+}
 
-  for (uint8_t i = 0; i < FX_CACHE_COUNT; i++) {
-    if (fxCache[i].valid && strcmp(fxCache[i].path, path) == 0) {
+EspBoatAudio::PsramProfile EspBoatAudio::getPsramProfile() const
+{
+  return psramProfile;
+}
+
+uint32_t EspBoatAudio::psramReserveBytes() const
+{
+  if (psramProfile == PSRAM_PROFILE_8MB)
+    return 1024UL * 1024UL;   // réserve 1 MB
+
+  return 640UL * 1024UL;      // réserve prudente 2 MB
+}
+
+uint32_t EspBoatAudio::maxRamSoundBytes(AudioCodec codec) const
+{
+  if (psramProfile == PSRAM_PROFILE_8MB)
+  {
+    if (codec == CODEC_IMA_ADPCM)
+      return 4UL * 1024UL * 1024UL;
+
+    return 2UL * 1024UL * 1024UL;
+  }
+
+  if (codec == CODEC_IMA_ADPCM)
+    return 512UL * 1024UL;
+
+  return 200UL * 1024UL;
+}
+
+bool EspBoatAudio::canCacheSound(uint32_t dataBytes,
+                                 AudioCodec codec,
+                                 bool pinned) const
+{
+  if (dataBytes == 0)
+    return false;
+
+  uint32_t freePsram = ESP.getFreePsram();
+  uint32_t reserve   = psramReserveBytes();
+
+  if (freePsram <= reserve)
+    return false;
+
+  if ((freePsram - reserve) < dataBytes)
+    return false;
+
+  if (pinned)
+    return true;
+
+  return dataBytes <= maxRamSoundBytes(codec);
+}
+
+
+int8_t EspBoatAudio::findFxCache(const char* path)
+{
+  if (!path)
+    return -1;
+
+  for (uint8_t i = 0; i < FX_CACHE_COUNT; i++)
+  {
+    if (fxCache[i].valid && strcmp(fxCache[i].path, path) == 0)
+    {
+      fxCache[i].lastUseMs = millis();
+      fxCache[i].useCount++;
       return i;
     }
   }
@@ -1376,51 +1452,177 @@ int8_t EspBoatAudio::findFxCache(const char* path) {
   return -1;
 }
 
-bool EspBoatAudio::preloadFxCache(const char* path) {
-  if (!path || !mutex || !renderMutex) return false;
+int8_t EspBoatAudio::findEngineFxCache(const char* path)
+{
+  if (!path)
+    return -1;
 
-  if (findFxCache(path) >= 0) return true;
+  for (uint8_t i = 0; i < ENGINE_FX_CACHE_COUNT; i++)
+  {
+    if (engineFxCache[i].valid && strcmp(engineFxCache[i].path, path) == 0)
+    {
+      engineFxCache[i].lastUseMs = millis();
+      engineFxCache[i].useCount++;
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+EspBoatAudio::CachedFx* EspBoatAudio::findCachedSound(const char* path)
+{
+  if (!path)
+    return nullptr;
+
+  int8_t fx = findFxCache(path);
+  if (fx >= 0)
+    return &fxCache[fx];
+
+  int8_t eng = findEngineFxCache(path);
+  if (eng >= 0)
+    return &engineFxCache[eng];
+
+  return nullptr;
+}
+
+
+bool EspBoatAudio::preloadToCache(const char* path,
+                                  bool pinned,
+                                  CachedFx* cache,
+                                  uint8_t cacheCount,
+                                  const char* tag)
+{
+  if (!path || !mutex || !renderMutex || !sdMutex || !cache || cacheCount == 0)
+    return false;
+
+  for (uint8_t i = 0; i < cacheCount; i++)
+  {
+    if (cache[i].valid && strcmp(cache[i].path, path) == 0)
+    {
+      if (pinned)
+        cache[i].pinned = true;
+
+      cache[i].lastUseMs = millis();
+      cache[i].useCount++;
+
+      return true;
+    }
+  }
 
   int8_t slot = -1;
 
-  for (uint8_t i = 0; i < FX_CACHE_COUNT; i++) {
-    if (!fxCache[i].valid) {
+  for (uint8_t i = 0; i < cacheCount; i++)
+  {
+    if (!cache[i].valid)
+    {
       slot = i;
       break;
     }
   }
 
-  if (slot < 0) return false;
+  if (slot < 0)
+  {
+    Serial.print(tag);
+    Serial.print(F(" plein : "));
+    Serial.println(path);
+    return false;
+  }
+
+  SdFile test;
+  Voice info;
+  resetVoiceRuntime(info);
+
+  xSemaphoreTake(sdMutex, portMAX_DELAY);
+
+  bool ok = test.open(path, O_RDONLY);
+  bool parsed = ok ? parseWav(test, info) : false;
+
+  if (ok)
+    test.close();
+
+  xSemaphoreGive(sdMutex);
+
+  if (!ok || !parsed)
+  {
+    Serial.print(tag);
+    Serial.print(F(" WAV invalide : "));
+    Serial.println(path);
+    return false;
+  }
+
+  if (!canCacheSound(info.dataSize, info.codec, pinned))
+  {
+    Serial.print(tag);
+    Serial.print(F(" skip PSRAM : "));
+    Serial.println(path);
+    return false;
+  }
 
   Voice loaded;
   resetVoiceRuntime(loaded);
 
-  if (!openWav(loaded, path)) {
+  if (!openWav(loaded, path))
+  {
     freeVoiceBuffer(loaded);
     return false;
   }
 
-  fxCache[slot].buffer = loaded.buffer;
-  fxCache[slot].dataSize = loaded.dataSize;
-  fxCache[slot].totalFrames = loaded.totalFrames;
-  fxCache[slot].bytesPerFrame = loaded.bytesPerFrame;
-  fxCache[slot].wavBlockAlign = loaded.wavBlockAlign;
-  fxCache[slot].adpcmSamplesPerBlock = loaded.adpcmSamplesPerBlock;
-  fxCache[slot].sampleRate = loaded.sampleRate;
-  fxCache[slot].stereo = loaded.stereo;
-  fxCache[slot].codec = loaded.codec;
-  fxCache[slot].valid = true;
+  cache[slot].buffer = loaded.buffer;
+  cache[slot].dataSize = loaded.dataSize;
+  cache[slot].totalFrames = loaded.totalFrames;
+  cache[slot].bytesPerFrame = loaded.bytesPerFrame;
+  cache[slot].wavBlockAlign = loaded.wavBlockAlign;
+  cache[slot].adpcmSamplesPerBlock = loaded.adpcmSamplesPerBlock;
+  cache[slot].sampleRate = loaded.sampleRate;
+  cache[slot].stereo = loaded.stereo;
+  cache[slot].codec = loaded.codec;
+  cache[slot].valid = true;
+  cache[slot].pinned = pinned;
+  cache[slot].lastUseMs = millis();
+  cache[slot].useCount = 1;
 
-  strncpy(fxCache[slot].path, path, sizeof(fxCache[slot].path) - 1);
-  fxCache[slot].path[sizeof(fxCache[slot].path) - 1] = 0;
+  strncpy(cache[slot].path, path, sizeof(cache[slot].path) - 1);
+  cache[slot].path[sizeof(cache[slot].path) - 1] = 0;
 
   loaded.buffer = nullptr;
   loaded.ownsBuffer = false;
 
   freeVoiceBuffer(loaded);
 
+ // Serial.print(tag);
+ // Serial.print(F(" loaded "));
+//  if (pinned)
+  //  Serial.print(F("[PIN] "));
+ // Serial.println(path);
+
   return true;
 }
+
+bool EspBoatAudio::preloadFxCache(const char* path, bool pinned)
+{
+  return preloadToCache(path,
+                        pinned,
+                        fxCache,
+                        FX_CACHE_COUNT,
+                        "[FX CACHE]");
+}
+
+bool EspBoatAudio::preloadEngineFxCache(const char* path, bool pinned)
+{
+  return preloadToCache(path,
+                        pinned,
+                        engineFxCache,
+                        ENGINE_FX_CACHE_COUNT,
+                        "[ENGINE CACHE]");
+}
+
+bool EspBoatAudio::pinFx(const char* path)
+{
+  return preloadFxCache(path, true);
+}
+
+
 
 void EspBoatAudio::clearFxCache() {
   for (uint8_t i = 0; i < FX_CACHE_COUNT; i++) {
@@ -1440,6 +1642,109 @@ void EspBoatAudio::clearFxCache() {
     fxCache[i].codec = CODEC_PCM16;
     fxCache[i].valid = false;
   }
+}
+
+uint8_t EspBoatAudio::preloadFxList(const char* const* paths, uint8_t count)
+{
+  if (!paths || count == 0)
+    return 0;
+
+  uint8_t loaded = 0;
+
+  for (uint8_t i = 0; i < count; i++)
+  {
+    if (!paths[i] || !paths[i][0])
+      continue;
+
+    Serial.print(F("[FX CACHE] preload "));
+    Serial.print(paths[i]);
+
+    bool ok = preloadFxCache(paths[i]);
+
+    Serial.println(ok ? F(" -> OK") : F(" -> FAIL"));
+
+    if (ok)
+      loaded++;
+  }
+
+  return loaded;
+}
+
+uint8_t EspBoatAudio::preloadFolder(const char* folder)
+{
+  return preloadFolderPrefix(folder, nullptr);
+}
+uint8_t EspBoatAudio::preloadFolderPrefix(const char* folder, const char* prefix)
+{
+  if (!folder || !folder[0] || !sdMutex)
+    return 0;
+
+  uint8_t loaded = 0;
+
+  xSemaphoreTake(sdMutex, portMAX_DELAY);
+
+  SdFile dir;
+  if (!dir.open(folder, O_RDONLY))
+  {
+    xSemaphoreGive(sdMutex);
+    Serial.print(F("[FX CACHE] dossier absent : "));
+    Serial.println(folder);
+    return 0;
+  }
+
+  SdFile entry;
+
+  while (entry.openNext(&dir, O_RDONLY))
+  {
+    if (entry.isDir())
+    {
+      entry.close();
+      continue;
+    }
+
+    char name[96];
+    entry.getName(name, sizeof(name));
+    entry.close();
+
+    if (!name[0])
+      continue;
+
+    if (prefix && prefix[0])
+    {
+      if (strncmp(name, prefix, strlen(prefix)) != 0)
+        continue;
+    }
+
+    const char* ext = strrchr(name, '.');
+    if (!ext)
+      continue;
+
+    if (strcasecmp(ext, ".wav") != 0)
+      continue;
+
+    char path[160];
+    snprintf(path, sizeof(path), "%s/%s", folder, name);
+
+    xSemaphoreGive(sdMutex);
+
+    //Serial.print(F("[FX CACHE] preload "));
+    //Serial.print(path);
+
+    bool ok = preloadFxCache(path);
+
+    Serial.println(ok ? F(" -> OK") : F(" -> FAIL"));
+
+    if (ok)
+      loaded++;
+
+    xSemaphoreTake(sdMutex, portMAX_DELAY);
+  }
+
+  dir.close();
+
+  xSemaphoreGive(sdMutex);
+
+  return loaded;
 }
 
 EspBoatAudio::AudioHandle EspBoatAudio::playVoiceStream(VoiceId id,
@@ -1761,37 +2066,70 @@ EspBoatAudio::AudioHandle EspBoatAudio::playVoiceStream(VoiceId id,
 EspBoatAudio::AudioHandle EspBoatAudio::playFxAuto(const char* path,
                                                    float volume,
                                                    uint8_t priority,
-                                                   float pitch) {
+                                                   float pitch)
+{
   AudioHandle h;
 
-  if (!path || !sdMutex) return h;
+  if (!path || !sdMutex)
+    return h;
 
   SdFile f;
   Voice info;
   resetVoiceRuntime(info);
 
   xSemaphoreTake(sdMutex, portMAX_DELAY);
+
   bool ok = f.open(path, O_RDONLY);
-  uint32_t size = ok ? f.fileSize() : 0;
   bool parsed = ok ? parseWav(f, info) : false;
-  if (ok) f.close();
+
+  if (ok)
+    f.close();
+
   xSemaphoreGive(sdMutex);
 
-  if (!ok || !parsed) return h;
+  if (!ok || !parsed)
+    return h;
 
-  const uint32_t PCM_RAM_LIMIT   = 200UL * 1024UL;
-  const uint32_t ADPCM_RAM_LIMIT = 512UL * 1024UL;
-
-  if (info.codec == CODEC_IMA_ADPCM) {
-    if (size <= ADPCM_RAM_LIMIT) {
-      return playFx(path, volume, priority, pitch);
-    }
-
-    return playFxStream(path, volume, priority, pitch);
-  }
-
-  if (size <= PCM_RAM_LIMIT) {
+  if (canCacheSound(info.dataSize, info.codec, false))
     return playFx(path, volume, priority, pitch);
+
+  return playFxStream(path, volume, priority, pitch);
+}
+
+EspBoatAudio::AudioHandle EspBoatAudio::playFxAutoCached(const char* path,
+                                                         float volume,
+                                                         uint8_t priority,
+                                                         float pitch)
+{
+  AudioHandle h;
+
+  if (!path || !sdMutex)
+    return h;
+
+  if (findFxCache(path) >= 0)
+    return playFx(path, volume, priority, pitch);
+
+  SdFile f;
+  Voice info;
+  resetVoiceRuntime(info);
+
+  xSemaphoreTake(sdMutex, portMAX_DELAY);
+
+  bool ok = f.open(path, O_RDONLY);
+  bool parsed = ok ? parseWav(f, info) : false;
+
+  if (ok)
+    f.close();
+
+  xSemaphoreGive(sdMutex);
+
+  if (!ok || !parsed)
+    return h;
+
+  if (canCacheSound(info.dataSize, info.codec, false))
+  {
+    if (preloadFxCache(path, false))
+      return playFx(path, volume, priority, pitch);
   }
 
   return playFxStream(path, volume, priority, pitch);
@@ -2221,19 +2559,21 @@ bool EspBoatAudio::openWav(Voice& v, const char* path) {
   return true;
 }
 
-bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
+bool EspBoatAudio::parseWav(SdFile& f, Voice& v)
+{
   char tag[4];
 
   if (f.read(tag, 4) != 4) return false;
   if (memcmp(tag, "RIFF", 4) != 0) return false;
 
-  rd32(f);
+  rd32(f); // RIFF size
 
   if (f.read(tag, 4) != 4) return false;
   if (memcmp(tag, "WAVE", 4) != 0) return false;
 
-  bool gotFmt = false;
+  bool gotFmt  = false;
   bool gotData = false;
+  bool gotFact = false;
 
   uint16_t audioFormat = 0;
   uint16_t channels = 0;
@@ -2241,15 +2581,18 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
   uint16_t bits = 0;
   uint16_t blockAlign = 0;
   uint16_t samplesPerBlock = 0;
+  uint32_t factSamples = 0;
 
-  while (f.available()) {
+  while (f.available())
+  {
     if (f.read(tag, 4) != 4) break;
 
     uint32_t chunkSize = rd32(f);
     uint32_t chunkData = f.curPosition();
     uint32_t nextChunk = chunkData + chunkSize + (chunkSize & 1);
 
-    if (memcmp(tag, "fmt ", 4) == 0) {
+    if (memcmp(tag, "fmt ", 4) == 0)
+    {
       audioFormat = rd16(f);
       channels = rd16(f);
       sampleRate = rd32(f);
@@ -2257,15 +2600,28 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
       blockAlign = rd16(f);
       bits = rd16(f);
 
-      if (audioFormat == CODEC_IMA_ADPCM && chunkSize >= 20) {
+      if (audioFormat == CODEC_IMA_ADPCM && chunkSize >= 20)
+      {
         uint16_t cbSize = rd16(f);
-        if (cbSize >= 2) {
+
+        if (cbSize >= 2)
+        {
           samplesPerBlock = rd16(f);
         }
       }
 
       gotFmt = true;
-    } else if (memcmp(tag, "data", 4) == 0) {
+    }
+    else if (memcmp(tag, "fact", 4) == 0)
+    {
+      if (chunkSize >= 4)
+      {
+        factSamples = rd32(f);
+        gotFact = (factSamples > 0);
+      }
+    }
+    else if (memcmp(tag, "data", 4) == 0)
+    {
       v.dataStart = chunkData;
       v.dataSize = chunkSize;
       gotData = true;
@@ -2273,7 +2629,14 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
 
     f.seekSet(nextChunk);
 
-    if (gotFmt && gotData) break;
+    // Ne pas sortir avant d'avoir vu tous les chunks utiles possibles.
+    // Certains WAV ont fact avant data, d'autres ont LIST/INFO entre les deux.
+    if (gotFmt && gotData)
+    {
+      // On peut sortir ici car fact est normalement avant data pour ADPCM.
+      // Si fact était déjà passé, gotFact est déjà renseigné.
+      break;
+    }
   }
 
   if (!gotFmt || !gotData) return false;
@@ -2281,7 +2644,8 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
   if (sampleRate < 8000 || sampleRate > 48000) return false;
   if (blockAlign == 0) return false;
 
-  if (audioFormat == CODEC_PCM16) {
+  if (audioFormat == CODEC_PCM16)
+  {
     if (bits != 16) return false;
 
     v.codec = CODEC_PCM16;
@@ -2295,15 +2659,14 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
     return v.totalFrames > 0;
   }
 
-  if (audioFormat == CODEC_IMA_ADPCM) {
-    // Première intégration volontairement limitée au mono :
-    // c'est le meilleur format pour AMBIENT/RANDOM/USER longs et
-    // cela garde le décodeur simple et robuste.
+  if (audioFormat == CODEC_IMA_ADPCM)
+  {
     if (channels != 1) return false;
     if (bits != 4) return false;
     if (blockAlign < 8) return false;
 
-    if (samplesPerBlock == 0) {
+    if (samplesPerBlock == 0)
+    {
       samplesPerBlock = ((blockAlign - 4) * 2) + 1;
     }
 
@@ -2313,19 +2676,41 @@ bool EspBoatAudio::parseWav(SdFile& f, Voice& v) {
     v.codec = CODEC_IMA_ADPCM;
     v.stereo = false;
     v.sampleRate = sampleRate;
-    v.bytesPerFrame = 2;          // decoded PCM mono
-    v.wavBlockAlign = blockAlign; // compressed ADPCM block
+    v.bytesPerFrame = 2;          // PCM mono décodé
+    v.wavBlockAlign = blockAlign; // bloc ADPCM compressé
     v.adpcmSamplesPerBlock = samplesPerBlock;
 
     uint32_t fullBlocks = v.dataSize / v.wavBlockAlign;
     uint32_t rem = v.dataSize % v.wavBlockAlign;
 
-    v.totalFrames = fullBlocks * (uint32_t)v.adpcmSamplesPerBlock;
+    uint32_t blockFrames = fullBlocks * (uint32_t)v.adpcmSamplesPerBlock;
 
-    if (rem >= 4) {
-      v.totalFrames += ((rem - 4) * 2) + 1;
+    if (rem >= 4)
+    {
+      blockFrames += ((rem - 4) * 2) + 1;
     }
 
+    if (gotFact && factSamples > 0 && factSamples <= blockFrames)
+    {
+      v.totalFrames = factSamples;
+    }
+    else
+    {
+      v.totalFrames = blockFrames;
+    }
+#ifdef AUDIO_DEBUG_WAV
+    Serial.printf(
+      "[WAV ADPCM] rate=%lu block=%u spb=%u data=%lu fact=%lu frames=%lu dur=%.3fs\r\n",
+      (unsigned long)v.sampleRate,
+      v.wavBlockAlign,
+      v.adpcmSamplesPerBlock,
+      (unsigned long)v.dataSize,
+      (unsigned long)(gotFact ? factSamples : 0),
+      (unsigned long)v.totalFrames,
+      (float)v.totalFrames / (float)v.sampleRate
+
+    );
+#endif
     return v.totalFrames > 0;
   }
 
@@ -2839,4 +3224,330 @@ int32_t EspBoatAudio::softLimit(int32_t x) {
   }
 
   return x;
+}
+
+
+
+EspBoatAudio::AudioHandle EspBoatAudio::engineCrossfade(const char* newPath,
+                                                        uint32_t durationMs,
+                                                        float volume,
+                                                        float pitch,
+                                                        uint8_t priority,
+                                                        bool stream)
+{
+  if (!newPath)
+    return AudioHandle{};
+
+  VoiceId oldVoice = activeEngineVoice;
+  VoiceId newVoice = inactiveEngineVoice;
+
+  AudioHandle h;
+
+  if (stream) {
+    h = playVoiceStream(newVoice, newPath, true, 0.0f, pitch, priority);
+  } else {
+    h = playVoice(newVoice, newPath, true, 0.0f, pitch, priority);
+  }
+
+  if (!h.valid())
+    return AudioHandle{};
+
+  xSemaphoreTake(renderMutex, portMAX_DELAY);
+  xSemaphoreTake(mutex, portMAX_DELAY);
+
+  if (voices[newVoice].active) {
+    voices[newVoice].baseVolume = constrain(volume, 0.0f, 2.0f);
+    voices[newVoice].volume = 0.0f;
+    startFadeNoLock(voices[newVoice], voices[newVoice].baseVolume, durationMs, false);
+  }
+
+  if (voices[oldVoice].active) {
+    startFadeNoLock(voices[oldVoice], 0.0f, durationMs, true);
+  }
+
+  activeEngineVoice = newVoice;
+  inactiveEngineVoice = oldVoice;
+
+  xSemaphoreGive(mutex);
+  xSemaphoreGive(renderMutex);
+
+  return h;
+}
+
+EspBoatAudio::AudioHandle EspBoatAudio::ambientCrossfade(const char* newPath,
+                                                         uint32_t durationMs,
+                                                         float volume,
+                                                         float pitch,
+                                                         uint8_t priority,
+                                                         bool stream)
+{
+  if (!newPath)
+    return AudioHandle{};
+
+  VoiceId oldVoice = activeAmbientVoice;
+  VoiceId newVoice = inactiveAmbientVoice;
+
+  AudioHandle h;
+
+  if (stream) {
+    h = playVoiceStream(newVoice, newPath, true, 0.0f, pitch, priority);
+  } else {
+    h = playVoice(newVoice, newPath, true, 0.0f, pitch, priority);
+  }
+
+  if (!h.valid())
+    return AudioHandle{};
+
+  xSemaphoreTake(renderMutex, portMAX_DELAY);
+  xSemaphoreTake(mutex, portMAX_DELAY);
+
+  if (voices[newVoice].active) {
+    voices[newVoice].baseVolume = constrain(volume, 0.0f, 2.0f);
+    voices[newVoice].volume = 0.0f;
+    startFadeNoLock(voices[newVoice], voices[newVoice].baseVolume, durationMs, false);
+  }
+
+  if (voices[oldVoice].active) {
+    startFadeNoLock(voices[oldVoice], 0.0f, durationMs, true);
+  }
+
+  activeAmbientVoice = newVoice;
+  inactiveAmbientVoice = oldVoice;
+
+  xSemaphoreGive(mutex);
+  xSemaphoreGive(renderMutex);
+
+  return h;
+}
+
+EspBoatAudio::VoiceId EspBoatAudio::currentEngineVoice() const {
+  return activeEngineVoice;
+}
+
+EspBoatAudio::VoiceId EspBoatAudio::currentAmbientVoice() const {
+  return activeAmbientVoice;
+}
+
+void EspBoatAudio::fadeHandle(AudioHandle h, float targetVolume, uint32_t durationMs)
+{
+  if (!h.valid() || h.voice >= VOICE_COUNT || !mutex || !renderMutex)
+    return;
+
+  targetVolume = constrain(targetVolume, 0.0f, 2.0f);
+
+  xSemaphoreTake(renderMutex, portMAX_DELAY);
+  xSemaphoreTake(mutex, portMAX_DELAY);
+
+  Voice& v = voices[h.voice];
+
+  if (v.active && v.generation == h.generation)
+  {
+    v.baseVolume = targetVolume;
+    startFadeNoLock(v, targetVolume, durationMs, false);
+  }
+
+  xSemaphoreGive(mutex);
+  xSemaphoreGive(renderMutex);
+}
+
+void EspBoatAudio::printFxCacheStatus()
+{
+  Serial.println(F("─────── FX CACHE ───────"));
+
+  uint32_t total = 0;
+  uint8_t used = 0;
+  uint8_t pinnedCount = 0;
+
+  for (uint8_t i = 0; i < FX_CACHE_COUNT; i++)
+  {
+    if (!fxCache[i].valid)
+      continue;
+
+    used++;
+    total += fxCache[i].dataSize;
+
+    if (fxCache[i].pinned)
+      pinnedCount++;
+
+    Serial.printf(
+      "%02u : %7lu bytes | %s | %s | use=%lu | %s\r\n",
+      i,
+      (unsigned long)fxCache[i].dataSize,
+      fxCache[i].codec == CODEC_IMA_ADPCM ? "ADPCM" : "PCM16",
+      fxCache[i].pinned ? "PIN" : "RAM",
+      (unsigned long)fxCache[i].useCount,
+      fxCache[i].path
+    );
+  }
+
+  Serial.printf("Profil PSRAM   : %s\r\n",
+                psramProfile == PSRAM_PROFILE_8MB ? "8MB" : "2MB");
+
+  Serial.printf("Slots utilisés : %u / %u\r\n", used, FX_CACHE_COUNT);
+  Serial.printf("Slots pinned   : %u\r\n", pinnedCount);
+  Serial.printf("Total cache    : %lu KB\r\n", (unsigned long)(total / 1024));
+  Serial.printf("PSRAM totale   : %lu KB\r\n", (unsigned long)(ESP.getPsramSize() / 1024));
+  Serial.printf("PSRAM libre    : %lu KB\r\n", (unsigned long)(ESP.getFreePsram() / 1024));
+  Serial.printf("PSRAM utilisée : %lu KB\r\n",
+                (unsigned long)((ESP.getPsramSize() - ESP.getFreePsram()) / 1024));
+
+  Serial.println(F("────────────────────────"));
+}
+
+uint8_t EspBoatAudio::preloadFolderAdpcmOnly(const char* folder)
+{
+  return preloadFolderPrefixAdpcmOnly(folder, nullptr);
+}
+
+uint8_t EspBoatAudio::preloadFolderPrefixAdpcmOnly(const char* folder, const char* prefix)
+{
+  if (!folder || !folder[0] || !sdMutex)
+    return 0;
+
+  uint8_t loaded = 0;
+
+  xSemaphoreTake(sdMutex, portMAX_DELAY);
+
+  SdFile dir;
+  if (!dir.open(folder, O_RDONLY))
+  {
+    xSemaphoreGive(sdMutex);
+    Serial.print(F("[FX CACHE] dossier absent : "));
+    Serial.println(folder);
+    return 0;
+  }
+
+  SdFile entry;
+
+  while (entry.openNext(&dir, O_RDONLY))
+  {
+    if (entry.isDir())
+    {
+      entry.close();
+      continue;
+    }
+
+    char name[96];
+    entry.getName(name, sizeof(name));
+    entry.close();
+
+    if (!name[0])
+      continue;
+
+    if (prefix && prefix[0])
+    {
+      if (strncmp(name, prefix, strlen(prefix)) != 0)
+        continue;
+    }
+
+    if (strstr(name, "Copie") || strstr(name, "copie"))
+      continue;
+
+    if (strncmp(name, "222", 3) == 0)
+      continue;
+
+    const char* ext = strrchr(name, '.');
+    if (!ext)
+      continue;
+
+    if (strcasecmp(ext, ".wav") != 0)
+      continue;
+
+    char path[160];
+    snprintf(path, sizeof(path), "%s/%s", folder, name);
+
+    SdFile test;
+    Voice info;
+    resetVoiceRuntime(info);
+
+    bool ok = test.open(path, O_RDONLY);
+    bool parsed = ok ? parseWav(test, info) : false;
+
+    if (ok)
+      test.close();
+
+    if (!ok || !parsed)
+      continue;
+
+    if (info.codec != CODEC_IMA_ADPCM)
+    {
+      Serial.print(F("[FX CACHE] skip non ADPCM : "));
+      Serial.println(path);
+      continue;
+    }
+
+    xSemaphoreGive(sdMutex);
+
+//    Serial.print(F("[FX CACHE] preload ADPCM "));
+//    Serial.print(path);
+
+    bool loadedOk = preloadFxCache(path, false);
+
+  //  Serial.println(loadedOk ? F(" -> OK") : F(" -> FAIL"));
+
+    if (loadedOk)
+      loaded++;
+
+    xSemaphoreTake(sdMutex, portMAX_DELAY);
+  }
+
+  dir.close();
+
+  xSemaphoreGive(sdMutex);
+
+  return loaded;
+}
+
+void EspBoatAudio::clearEngineFxCache()
+{
+  for (uint8_t i = 0; i < ENGINE_FX_CACHE_COUNT; i++)
+  {
+    if (engineFxCache[i].valid && engineFxCache[i].buffer)
+      heap_caps_free(engineFxCache[i].buffer);
+
+    engineFxCache[i].path[0] = 0;
+    engineFxCache[i].buffer = nullptr;
+    engineFxCache[i].dataSize = 0;
+    engineFxCache[i].totalFrames = 0;
+    engineFxCache[i].bytesPerFrame = 0;
+    engineFxCache[i].wavBlockAlign = 0;
+    engineFxCache[i].adpcmSamplesPerBlock = 0;
+    engineFxCache[i].sampleRate = 0;
+    engineFxCache[i].stereo = false;
+    engineFxCache[i].codec = CODEC_PCM16;
+    engineFxCache[i].valid = false;
+    engineFxCache[i].pinned = false;
+    engineFxCache[i].lastUseMs = 0;
+    engineFxCache[i].useCount = 0;
+  }
+}
+void EspBoatAudio::printEngineFxCacheStatus()
+{
+  Serial.println(F("─────── ENGINE FX CACHE ───────"));
+
+  uint32_t total = 0;
+  uint8_t used = 0;
+
+  for (uint8_t i = 0; i < ENGINE_FX_CACHE_COUNT; i++)
+  {
+    if (!engineFxCache[i].valid)
+      continue;
+
+    used++;
+    total += engineFxCache[i].dataSize;
+
+    Serial.printf(
+      "%02u : %7lu bytes | %s | %s | use=%lu | %s\r\n",
+      i,
+      (unsigned long)engineFxCache[i].dataSize,
+      engineFxCache[i].codec == CODEC_IMA_ADPCM ? "ADPCM" : "PCM16",
+      engineFxCache[i].pinned ? "PIN" : "RAM",
+      (unsigned long)engineFxCache[i].useCount,
+      engineFxCache[i].path
+    );
+  }
+
+  Serial.printf("Slots moteur   : %u / %u\r\n", used, ENGINE_FX_CACHE_COUNT);
+  Serial.printf("Total moteur   : %lu KB\r\n", (unsigned long)(total / 1024));
+  Serial.println(F("────────────────────────────────"));
 }

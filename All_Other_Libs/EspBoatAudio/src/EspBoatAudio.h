@@ -6,343 +6,482 @@
 
 class EspBoatAudio {
 public:
-  enum VoiceId : uint8_t {
-    VOICE_ENGINE = 0,
-    VOICE_AMBIENT,
-	VOICE_ANCHOR,
-    VOICE_FX0,
-    VOICE_FX1,
-    VOICE_FX2,
-    VOICE_FX3,
-    VOICE_COUNT
-  };
+enum AudioCodec : uint8_t {
+CODEC_PCM16 = 1,
+CODEC_IMA_ADPCM = 17
+};
 
-  struct AudioHandle {
-    int8_t voice = -1;
-    uint32_t generation = 0;
+enum VoiceId : uint8_t {
+VOICE_ENGINE_A,
+VOICE_ENGINE_B,
 
-    bool valid() const {
-      return voice >= 0;
-    }
-  };
+VOICE_AMBIENT_A,
+VOICE_AMBIENT_B,
 
-  struct QueueItem {
-    const char* path = nullptr;
-    bool loop = false;
-    uint8_t repeatCount = 1;
-    float volume = 1.0f;
-    float pitch = 1.0f;
-    uint8_t priority = 1;
-  };
+VOICE_BRIDGE,
+VOICE_RAIN,
+VOICE_THUNDER,
 
-  bool begin(uint8_t bclk,
-             uint8_t lrck,
-             uint8_t dout,
-             uint32_t outputRate = 44100,
-             i2s_port_t port = I2S_NUM_0,
-             int taskCore = 1);
+VOICE_RANDOM_A,
+VOICE_RANDOM_B,
 
-  void end();
+VOICE_ANCHOR,
 
-  void streamTick();
-  void chainTick();
+VOICE_ALARM,
 
-  bool enginePlayLoop(const char* path);
-  void engineStop();
-  void engineSetPitch(float pitch);
-  void engineSetVolume(float volume);
-  void engineGenericStop(uint32_t durationMs = 1800,
-                         float targetPitch = 0.45f);
+VOICE_FX0,
+VOICE_FX1,
+VOICE_FX2,
+VOICE_FX3,
 
-  bool ambientPlayLoop(const char* path);
-  void ambientStop();
-  void ambientSetVolume(float volume);
 
-  AudioHandle playFx(const char* path,
-                     float volume = 1.0f,
-                     uint8_t priority = 1,
-                     float pitch = 1.0f);
+VOICE_COUNT,
 
-  AudioHandle playFxStream(const char* path,
-                           float volume = 1.0f,
-                           uint8_t priority = 1,
-                           float pitch = 1.0f);
+// Alias logiques pour compatibilité
+VOICE_ENGINE = VOICE_ENGINE_A,
+VOICE_AMBIENT = VOICE_AMBIENT_A
+};
 
-  AudioHandle playFxAuto(const char* path,
-                         float volume = 1.0f,
-                         uint8_t priority = 1,
-                         float pitch = 1.0f);
+enum PsramProfile : uint8_t {
+PSRAM_PROFILE_2MB = 0,
+PSRAM_PROFILE_8MB = 1
+};
 
-  void stopFx(uint8_t fxIndex);
-  void stopAllFx();
+struct AudioHandle {
+int8_t voice = -1;
+uint32_t generation = 0;
 
-  AudioHandle playVoice(VoiceId id,
-                        const char* path,
-                        bool loop,
-                        float volume,
-                        float pitch,
-                        uint8_t priority,
-                        bool keepGeneration = false);
+bool valid() const {
+  return voice >= 0;
+}
+};
 
-  AudioHandle playVoiceStream(VoiceId id,
-                              const char* path,
-                              bool loop,
-                              float volume,
-                              float pitch,
-                              uint8_t priority,
-                              bool keepGeneration = false);
+struct QueueItem {
+const char* path = nullptr;
+bool loop = false;
+uint8_t repeatCount = 1;
+float volume = 1.0f;
+float pitch = 1.0f;
+uint8_t priority = 1;
+};
 
-  AudioHandle playVoiceRepeat(VoiceId id,
-                              const char* path,
-                              uint8_t playCount,
-                              float volume = 1.0f,
-                              float pitch = 1.0f,
-                              uint8_t priority = 1,
-                              bool keepGeneration = false);
+bool begin(uint8_t bclk,
+uint8_t lrck,
+uint8_t dout,
+uint32_t outputRate = 44100,
+i2s_port_t port = I2S_NUM_0,
+int taskCore = 1);
 
-  AudioHandle playVoiceStreamRepeat(VoiceId id,
-                                    const char* path,
-                                    uint8_t playCount,
-                                    float volume = 1.0f,
-                                    float pitch = 1.0f,
-                                    uint8_t priority = 1,
-                                    bool keepGeneration = false);
+void end();
 
-  AudioHandle playFxRepeat(const char* path,
-                           uint8_t playCount,
-                           float volume = 1.0f,
-                           uint8_t priority = 1,
-                           float pitch = 1.0f);
+void streamTick();
+void chainTick();
 
-  AudioHandle playFxRepeatStream(const char* path,
-                                 uint8_t playCount,
-                                 float volume = 1.0f,
-                                 uint8_t priority = 1,
-                                 float pitch = 1.0f);
+bool enginePlayLoop(const char* path);
+void engineStop();
+void engineSetPitch(float pitch);
+void engineSetVolume(float volume);
+void engineGenericStop(uint32_t durationMs = 1800,
+float targetPitch = 0.45f);
 
-  AudioHandle playFxRepeatAuto(const char* path,
-                               uint8_t playCount,
-                               float volume = 1.0f,
-                               uint8_t priority = 1,
-                               float pitch = 1.0f);
+bool ambientPlayLoop(const char* path);
+void ambientStop();
+void ambientSetVolume(float volume);
 
-  AudioHandle playVoiceThen(VoiceId id,
-                            const char* firstPath,
-                            const char* nextPath,
-                            bool nextLoop,
-                            float volume = 1.0f,
-                            float pitch = 1.0f,
-                            uint8_t priority = 1);
+AudioHandle playFx(const char* path,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  AudioHandle playVoiceQueue(VoiceId id,
-                             const QueueItem* items,
-                             uint8_t count);
+AudioHandle playFxStream(const char* path,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  bool isVoiceQueueDone(VoiceId id);
+AudioHandle playFxAuto(const char* path,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  bool preloadEngineLoop(const char* path,
-                         float volume = 1.0f,
-                         float pitch = 1.0f,
-                         uint8_t priority = 255);
+void stopFx(uint8_t fxIndex);
+void stopAllFx();
 
-  AudioHandle playPreloadedEngineLoop(bool keepGeneration = false);
+AudioHandle playVoice(VoiceId id,
+const char* path,
+bool loop,
+float volume,
+float pitch,
+uint8_t priority,
+bool keepGeneration = false);
 
-  void stopVoice(VoiceId id);
+AudioHandle playVoiceStream(VoiceId id,
+const char* path,
+bool loop,
+float volume,
+float pitch,
+uint8_t priority,
+bool keepGeneration = false);
 
-  void setVoiceVolume(VoiceId id, float volume);
-  void requestVoiceStop(VoiceId id);
-  void setVoicePitch(VoiceId id, float pitch);
-  void setMasterVolume(float volume);
+AudioHandle playVoiceRepeat(VoiceId id,
+const char* path,
+uint8_t playCount,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 1,
+bool keepGeneration = false);
 
-  void fadeVoice(VoiceId id, float targetVolume, uint32_t durationMs);
-  void fadeOutAndStop(VoiceId id, uint32_t durationMs);
+AudioHandle playVoiceStreamRepeat(VoiceId id,
+const char* path,
+uint8_t playCount,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 1,
+bool keepGeneration = false);
 
-  void duckVoice(VoiceId id, float factor, uint32_t attackMs);
-  void unduckVoice(VoiceId id, uint32_t releaseMs);
+AudioHandle playFxRepeat(const char* path,
+uint8_t playCount,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  void duck(AudioHandle h, float factor, uint32_t attackMs);
-  void unduck(AudioHandle h, uint32_t releaseMs);
+AudioHandle playFxRepeatStream(const char* path,
+uint8_t playCount,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  bool isPlaying(VoiceId id);
-  uint32_t positionMillis(VoiceId id);
-  uint32_t lengthMillis(VoiceId id);
+AudioHandle playFxRepeatAuto(const char* path,
+uint8_t playCount,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
 
-  bool isPlaying(AudioHandle h);
-  uint32_t positionMillis(AudioHandle h);
-  uint32_t lengthMillis(AudioHandle h);
-  uint32_t remainingMillis(AudioHandle h);
-  bool inWindow(AudioHandle h, uint32_t startMs, uint32_t endMs);
-  void stop(AudioHandle h);
+AudioHandle playVoiceThen(VoiceId id,
+const char* firstPath,
+const char* nextPath,
+bool nextLoop,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 1);
 
-  bool preloadFxCache(const char* path);
-  void clearFxCache();
-  void printVoicesStatus();
+AudioHandle playVoiceQueue(VoiceId id,
+const QueueItem* items,
+uint8_t count);
+
+bool isVoiceQueueDone(VoiceId id);
+
+bool preloadEngineLoop(const char* path,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 255);
+
+AudioHandle playPreloadedEngineLoop(bool keepGeneration = false);
+
+AudioHandle engineCrossfade(const char* newPath,
+uint32_t durationMs,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 255,
+bool stream = false);
+
+AudioHandle ambientCrossfade(const char* newPath,
+uint32_t durationMs,
+float volume = 1.0f,
+float pitch = 1.0f,
+uint8_t priority = 200,
+bool stream = true);
+
+AudioHandle playFxAutoCached(const char* path,
+float volume = 1.0f,
+uint8_t priority = 1,
+float pitch = 1.0f);
+
+void fadeHandle(AudioHandle h, float targetVolume, uint32_t durationMs);
+
+void stopVoice(VoiceId id);
+
+void setVoiceVolume(VoiceId id, float volume);
+void requestVoiceStop(VoiceId id);
+void setVoicePitch(VoiceId id, float pitch);
+void setMasterVolume(float volume);
+
+void fadeVoice(VoiceId id, float targetVolume, uint32_t durationMs);
+void fadeOutAndStop(VoiceId id, uint32_t durationMs);
+
+void duckVoice(VoiceId id, float factor, uint32_t attackMs);
+void unduckVoice(VoiceId id, uint32_t releaseMs);
+
+void duck(AudioHandle h, float factor, uint32_t attackMs);
+void unduck(AudioHandle h, uint32_t releaseMs);
+
+bool isPlaying(VoiceId id);
+uint32_t positionMillis(VoiceId id);
+uint32_t lengthMillis(VoiceId id);
+
+bool isPlaying(AudioHandle h);
+uint32_t positionMillis(AudioHandle h);
+uint32_t lengthMillis(AudioHandle h);
+uint32_t remainingMillis(AudioHandle h);
+bool inWindow(AudioHandle h, uint32_t startMs, uint32_t endMs);
+void stop(AudioHandle h);
+
+bool preloadFxCache(const char* path, bool pinned = false);
+bool pinFx(const char* path);
+void clearFxCache();
+void printVoicesStatus();
+VoiceId currentEngineVoice() const;
+VoiceId currentAmbientVoice() const;
+
+uint8_t preloadFxList(const char* const* paths, uint8_t count);
+uint8_t preloadFolder(const char* folder);
+uint8_t preloadFolderPrefix(const char* folder, const char* prefix);
+void printFxCacheStatus();
+void setPsramProfile(PsramProfile profile);
+PsramProfile getPsramProfile() const;
+
+bool preloadEngineFxCache(const char* path, bool pinned = false);
+
+uint8_t preloadFolderAdpcmOnly(const char* folder);
+uint8_t preloadFolderPrefixAdpcmOnly(const char* folder, const char* prefix);
+
+void clearEngineFxCache();
+void printEngineFxCacheStatus();
+
+enum StartLoopStopStage : uint8_t
+{
+SLS_IDLE = 0,
+SLS_STARTING,
+SLS_LOOPING,
+SLS_STOPPING,
+SLS_ON_NO_LOOP
+};
+
+enum StartLoopStopMode : uint8_t
+{
+SLS_HOLD = 0,
+SLS_TIMED
+};
+
+struct StartLoopStopItem
+{
+const char* path = nullptr;
+float volume = 1.0f;
+float pitch = 1.0f;
+uint8_t priority = 1;
+bool stream = false;
+};
+
+struct StartLoopStopRuntime
+{
+AudioHandle handle;
+StartLoopStopStage stage = SLS_IDLE;
+bool lastCommand = false;
+uint32_t startMs = 0;
+};
+
+void resetStartLoopStop(StartLoopStopRuntime& rt);
+
+void updateStartLoopStop(StartLoopStopRuntime& rt,
+VoiceId voice,
+bool command,
+StartLoopStopMode mode,
+uint32_t durationMs,
+const StartLoopStopItem& startItem,
+const StartLoopStopItem& loopItem,
+const StartLoopStopItem& stopItem);
 
 private:
-  enum AudioCodec : uint8_t {
-    CODEC_PCM16 = 1,
-    CODEC_IMA_ADPCM = 17
-  };
 
-  struct CachedFx {
-    char path[96];
-    uint8_t* buffer = nullptr;       // PCM16 data or compressed IMA ADPCM data
-    uint32_t dataSize = 0;           // PCM bytes or compressed ADPCM data bytes
-    uint32_t totalFrames = 0;
-    uint16_t bytesPerFrame = 0;      // decoded PCM frame size
-    uint16_t wavBlockAlign = 0;      // PCM frame size or ADPCM compressed block size
-    uint16_t adpcmSamplesPerBlock = 0;
-    uint32_t sampleRate = 0;
-    bool stereo = false;
-    AudioCodec codec = CODEC_PCM16;
-    bool valid = false;
-  };
-
-  static constexpr uint8_t FX_CACHE_COUNT = 16;
-  CachedFx fxCache[FX_CACHE_COUNT];
-
-  int8_t findFxCache(const char* path);
-
-  static constexpr uint32_t AUDIO_FRAMES = 1024;
-
-  static constexpr uint8_t STREAM_BLOCK_COUNT = 2;
-  static constexpr uint32_t STREAM_BLOCK_BYTES = 16384;
-
-  static constexpr uint8_t VOICE_QUEUE_MAX = 4;
-
-  struct StoredQueueItem {
-    char path[64] = {0};
-    bool loop = false;
-    uint8_t repeatCount = 1;
-    float volume = 1.0f;
-    float pitch = 1.0f;
-    uint8_t priority = 1;
-  };
-
-  struct Voice {
-    SdFile file;
-
-    bool active = false;
-    uint32_t generation = 0;
-	bool stopRequested = false;
-
-    bool loop = false;
-    bool stereo = false;
-    bool streaming = false;
-    AudioCodec codec = CODEC_PCM16;
-
-    volatile bool streamStop = false;
-    volatile bool streamEOF = false;
-
-    uint8_t priority = 0;
-
-    float volume = 1.0f;
-    float baseVolume = 1.0f;
-    float pitch = 1.0f;
-
-    float fadeStartVolume = 1.0f;
-    float fadeTargetVolume = 1.0f;
-    uint32_t fadeStartMs = 0;
-    uint32_t fadeDurationMs = 0;
-    bool fading = false;
-    bool stopAfterFade = false;
-
-    float pitchFadeStart = 1.0f;
-    float pitchFadeTarget = 1.0f;
-    uint32_t pitchFadeStartMs = 0;
-    uint32_t pitchFadeDurationMs = 0;
-    bool pitchFading = false;
-
-    uint32_t sampleRate = 44100;
-    uint32_t dataStart = 0;
-    uint32_t dataSize = 0;
-    uint32_t totalFrames = 0;
-
-    uint16_t bytesPerFrame = 2;        // PCM decoded frame size
-    uint16_t wavBlockAlign = 2;        // PCM frame size or ADPCM compressed block size
-    uint16_t adpcmSamplesPerBlock = 0;
-
-    uint64_t posQ16 = 0;
-    uint32_t stepQ16 = 65536;
-    uint16_t repeatLeft = 0;
-
-    uint8_t* buffer = nullptr;         // PCM16 data or compressed ADPCM data
-    bool ownsBuffer = true;
-
-    uint8_t* decodedBlock = nullptr;   // decoded PCM block for cached/RAM ADPCM
-    uint32_t decodedBlockIndex = 0xFFFFFFFFUL;
-    uint32_t decodedBlockBytes = 0;
-    uint32_t decodedBlockFrames = 0;
-
-    uint8_t* streamBlock[STREAM_BLOCK_COUNT] = {nullptr, nullptr};           // decoded PCM
-    uint32_t streamBlockBytes[STREAM_BLOCK_COUNT] = {0, 0};
-    volatile uint8_t streamBlockReady[STREAM_BLOCK_COUNT] = {0, 0};
-
-    uint8_t* streamCompressedBlock[STREAM_BLOCK_COUNT] = {nullptr, nullptr}; // ADPCM compressed input
-    uint32_t streamCompressedBlockBytes[STREAM_BLOCK_COUNT] = {0, 0};
-
-    uint8_t streamPlayBlock = 0;
-    uint32_t streamPlayOffset = 0;
-
-    char streamPath[96] = {0};
-	char currentPath[96] = {0};
-
-    StoredQueueItem queue[VOICE_QUEUE_MAX];
-    uint8_t queueCount = 0;
-    uint8_t queueIndex = 0;
-    bool queuePending = false;
-  };
-
-  Voice voices[VOICE_COUNT];
-  Voice preloadedEngine;
-  bool preloadedEngineValid = false;
-
-  i2s_chan_handle_t txChan = nullptr;
-  uint32_t outRate = 44100;
-
-  float masterVolume = 1.0f;
-
-  TaskHandle_t audioTaskHandle = nullptr;
-
-  SemaphoreHandle_t mutex = nullptr;
-  SemaphoreHandle_t sdMutex = nullptr;
-  SemaphoreHandle_t renderMutex = nullptr;
-
-  volatile bool running = false;
-
-  static void audioTaskThunk(void* arg);
-  void audioTask();
-
-  bool openWav(Voice& v, const char* path);
-  bool parseWav(SdFile& f, Voice& v);
-
-  bool decodeImaAdpcmMonoBlock(const uint8_t* in,
-                               uint32_t inBytes,
-                               uint8_t* out,
-                               uint32_t outCapacity,
-                               uint32_t& outBytes,
-                               uint32_t& outFrames);
-
-  bool readFrame(Voice& v,
-                 uint32_t frameIndex,
-                 int16_t& l,
-                 int16_t& r);
-
-  void updateStep(Voice& v);
-  void render(uint32_t* out, uint32_t frames);
-
-  void freeVoiceBuffer(Voice& v);
-  void resetVoiceRuntime(Voice& v);
-
-  void startFadeNoLock(Voice& v,
-                       float targetVolume,
-                       uint32_t durationMs,
-                       bool stopAfterFade);
-
-  void startPitchFadeNoLock(Voice& v,
-                            float targetPitch,
-                            uint32_t durationMs);
-
-  static int16_t clip16(int32_t x);
-  static int32_t softLimit(int32_t x);
+struct CachedFx {
+char path[96];
+uint8_t* buffer = nullptr; // PCM16 data or compressed IMA ADPCM data
+uint32_t dataSize = 0; // PCM bytes or compressed ADPCM data bytes
+uint32_t totalFrames = 0;
+uint16_t bytesPerFrame = 0; // decoded PCM frame size
+uint16_t wavBlockAlign = 0; // PCM frame size or ADPCM compressed block size
+uint16_t adpcmSamplesPerBlock = 0;
+uint32_t sampleRate = 0;
+bool stereo = false;
+AudioCodec codec = CODEC_PCM16;
+bool valid = false;
+bool pinned = false;
+uint32_t lastUseMs = 0;
+uint32_t useCount = 0;
 };
+
+static constexpr uint8_t FX_CACHE_COUNT = 96;
+CachedFx fxCache[FX_CACHE_COUNT];
+
+static constexpr uint8_t ENGINE_FX_CACHE_COUNT = 16;
+CachedFx engineFxCache[ENGINE_FX_CACHE_COUNT];
+
+int8_t findEngineFxCache(const char* path);
+CachedFx* findCachedSound(const char* path);
+
+bool preloadToCache(const char* path,
+                    bool pinned,
+                    CachedFx* cache,
+                    uint8_t cacheCount,
+                    const char* tag);
+
+int8_t findFxCache(const char* path);
+
+static constexpr uint32_t AUDIO_FRAMES = 1024;
+
+static constexpr uint8_t STREAM_BLOCK_COUNT = 2;
+static constexpr uint32_t STREAM_BLOCK_BYTES = 16384;
+
+static constexpr uint8_t VOICE_QUEUE_MAX = 4;
+
+struct StoredQueueItem {
+char path[64] = {0};
+bool loop = false;
+uint8_t repeatCount = 1;
+float volume = 1.0f;
+float pitch = 1.0f;
+uint8_t priority = 1;
+};
+
+struct Voice {
+SdFile file;
+
+bool active = false;
+uint32_t generation = 0;
+bool stopRequested = false;
+
+bool loop = false;
+bool stereo = false;
+bool streaming = false;
+AudioCodec codec = CODEC_PCM16;
+
+volatile bool streamStop = false;
+volatile bool streamEOF = false;
+
+uint8_t priority = 0;
+
+float volume = 1.0f;
+float baseVolume = 1.0f;
+float pitch = 1.0f;
+
+float fadeStartVolume = 1.0f;
+float fadeTargetVolume = 1.0f;
+uint32_t fadeStartMs = 0;
+uint32_t fadeDurationMs = 0;
+bool fading = false;
+bool stopAfterFade = false;
+
+float pitchFadeStart = 1.0f;
+float pitchFadeTarget = 1.0f;
+uint32_t pitchFadeStartMs = 0;
+uint32_t pitchFadeDurationMs = 0;
+bool pitchFading = false;
+
+uint32_t sampleRate = 44100;
+uint32_t dataStart = 0;
+uint32_t dataSize = 0;
+uint32_t totalFrames = 0;
+
+uint16_t bytesPerFrame = 2;        // PCM decoded frame size
+uint16_t wavBlockAlign = 2;        // PCM frame size or ADPCM compressed block size
+uint16_t adpcmSamplesPerBlock = 0;
+
+uint64_t posQ16 = 0;
+uint32_t stepQ16 = 65536;
+uint16_t repeatLeft = 0;
+
+uint8_t* buffer = nullptr;         // PCM16 data or compressed ADPCM data
+bool ownsBuffer = true;
+
+uint8_t* decodedBlock = nullptr;   // decoded PCM block for cached/RAM ADPCM
+uint32_t decodedBlockIndex = 0xFFFFFFFFUL;
+uint32_t decodedBlockBytes = 0;
+uint32_t decodedBlockFrames = 0;
+
+uint8_t* streamBlock[STREAM_BLOCK_COUNT] = {nullptr, nullptr};           // decoded PCM
+uint32_t streamBlockBytes[STREAM_BLOCK_COUNT] = {0, 0};
+volatile uint8_t streamBlockReady[STREAM_BLOCK_COUNT] = {0, 0};
+
+uint8_t* streamCompressedBlock[STREAM_BLOCK_COUNT] = {nullptr, nullptr}; // ADPCM compressed input
+uint32_t streamCompressedBlockBytes[STREAM_BLOCK_COUNT] = {0, 0};
+
+uint8_t streamPlayBlock = 0;
+uint32_t streamPlayOffset = 0;
+
+char streamPath[96] = {0};
+char currentPath[96] = {0};
+
+StoredQueueItem queue[VOICE_QUEUE_MAX];
+uint8_t queueCount = 0;
+uint8_t queueIndex = 0;
+bool queuePending = false;
+};
+
+Voice voices[VOICE_COUNT];
+Voice preloadedEngine;
+bool preloadedEngineValid = false;
+
+i2s_chan_handle_t txChan = nullptr;
+uint32_t outRate = 44100;
+
+float masterVolume = 1.0f;
+
+TaskHandle_t audioTaskHandle = nullptr;
+
+SemaphoreHandle_t mutex = nullptr;
+SemaphoreHandle_t sdMutex = nullptr;
+SemaphoreHandle_t renderMutex = nullptr;
+
+volatile bool running = false;
+
+static void audioTaskThunk(void* arg);
+void audioTask();
+
+bool openWav(Voice& v, const char* path);
+bool parseWav(SdFile& f, Voice& v);
+
+bool decodeImaAdpcmMonoBlock(const uint8_t* in,
+uint32_t inBytes,
+uint8_t* out,
+uint32_t outCapacity,
+uint32_t& outBytes,
+uint32_t& outFrames);
+
+bool readFrame(Voice& v,
+uint32_t frameIndex,
+int16_t& l,
+int16_t& r);
+
+void updateStep(Voice& v);
+void render(uint32_t* out, uint32_t frames);
+
+void freeVoiceBuffer(Voice& v);
+void resetVoiceRuntime(Voice& v);
+
+void startFadeNoLock(Voice& v,
+float targetVolume,
+uint32_t durationMs,
+bool stopAfterFade);
+
+void startPitchFadeNoLock(Voice& v,
+float targetPitch,
+uint32_t durationMs);
+
+static int16_t clip16(int32_t x);
+static int32_t softLimit(int32_t x);
+
+VoiceId activeEngineVoice = VOICE_ENGINE_A;
+VoiceId inactiveEngineVoice = VOICE_ENGINE_B;
+
+VoiceId activeAmbientVoice = VOICE_AMBIENT_A;
+VoiceId inactiveAmbientVoice = VOICE_AMBIENT_B;
+PsramProfile psramProfile = PSRAM_PROFILE_2MB;
+
+uint32_t psramReserveBytes() const;
+uint32_t maxRamSoundBytes(AudioCodec codec) const;
+bool canCacheSound(uint32_t dataBytes,AudioCodec codec,bool pinned) const;
+
+bool isFxCacheInUseNoLock(uint8_t slot) const;
+void releaseFxCacheSlotNoLock(uint8_t slot);
+int8_t findLruEvictableSlotNoLock();
+};
+
