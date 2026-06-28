@@ -40,7 +40,7 @@ FrSkySportTelemetry telemetry;                                 // Create telemet
 void setup()
 {
   // Configure the telemetry serial port and sensors (remember to use & to specify a pointer to sensor)
-  telemetry.begin(FrSkySportSingleWireSerial::SERIAL_2_S3, 3, 2, &ass, &esc, &fcs, &flvss1, &flvss2, &gas, &gps, &rpm, &sp2uart, &vario);
+  telemetry.begin(FrSkySportSingleWireSerial::SERIAL_2_S3, 2, &ass, &esc, &fcs, &flvss1, &flvss2, &gas, &gps, &rpm, &sp2uart, &vario);
 }
 
 void loop()
