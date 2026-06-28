@@ -73,6 +73,26 @@ void FrSkySportTelemetry::begin(FrSkySportSingleWireSerial::SerialId id,
 
 #if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
 void FrSkySportTelemetry::begin(FrSkySportSingleWireSerial::SerialId id,
+                                int8_t sportPin,
+                                FrSkySportSensor* sensor1,  FrSkySportSensor* sensor2,  FrSkySportSensor* sensor3,
+                                FrSkySportSensor* sensor4,  FrSkySportSensor* sensor5,  FrSkySportSensor* sensor6,
+                                FrSkySportSensor* sensor7,  FrSkySportSensor* sensor8,  FrSkySportSensor* sensor9,
+                                FrSkySportSensor* sensor10, FrSkySportSensor* sensor11, FrSkySportSensor* sensor12,
+                                FrSkySportSensor* sensor13, FrSkySportSensor* sensor14, FrSkySportSensor* sensor15,
+                                FrSkySportSensor* sensor16, FrSkySportSensor* sensor17, FrSkySportSensor* sensor18,
+                                FrSkySportSensor* sensor19, FrSkySportSensor* sensor20, FrSkySportSensor* sensor21,
+                                FrSkySportSensor* sensor22, FrSkySportSensor* sensor23, FrSkySportSensor* sensor24,
+                                FrSkySportSensor* sensor25, FrSkySportSensor* sensor26, FrSkySportSensor* sensor27,
+                                FrSkySportSensor* sensor28)
+{
+  begin(id, sportPin, sportPin,
+        sensor1,  sensor2,  sensor3,  sensor4,  sensor5,  sensor6,  sensor7,
+        sensor8,  sensor9,  sensor10, sensor11, sensor12, sensor13, sensor14,
+        sensor15, sensor16, sensor17, sensor18, sensor19, sensor20, sensor21,
+        sensor22, sensor23, sensor24, sensor25, sensor26, sensor27, sensor28);
+}
+
+void FrSkySportTelemetry::begin(FrSkySportSingleWireSerial::SerialId id,
                                 int8_t rxPin, int8_t txPin,
                                 FrSkySportSensor* sensor1,  FrSkySportSensor* sensor2,  FrSkySportSensor* sensor3,
                                 FrSkySportSensor* sensor4,  FrSkySportSensor* sensor5,  FrSkySportSensor* sensor6,

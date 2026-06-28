@@ -1140,7 +1140,7 @@ static const char* voiceNames[] =
   "AMBI_B",
   "BRIDGE",
   "RAIN",
-  "THUNDER",  
+  "THUNDER",
   "RANDOM_A",
   "RANDOM_B",
   "ANCHOR",
@@ -1148,7 +1148,12 @@ static const char* voiceNames[] =
   "FX0",
   "FX1",
   "FX2",
-  "FX3"
+  "FX3",
+  "TDG_TURBO",
+  "TDG_FAN",
+  "TDG_JAKE",
+  "TDG_KNOCK",
+  "TDG_WGATE"
 };
 
   Serial.println(F("─────── AUDIO VOICES ───────"));

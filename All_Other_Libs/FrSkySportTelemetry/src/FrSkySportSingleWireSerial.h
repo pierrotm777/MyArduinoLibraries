@@ -59,6 +59,7 @@ class FrSkySportSingleWireSerial
     void begin(SerialId id);
 #if defined(ESP32_HW)
     void begin(SerialId id, int8_t rxPin, int8_t txPin);
+    void begin(SerialId id, int8_t sportPin); // true single-wire: RX and TX on the same GPIO
 #endif
     void sendHeader(uint8_t id);
     void sendData(uint16_t dataTypeId, uint32_t id);
@@ -85,6 +86,7 @@ class FrSkySportSingleWireSerial
     SerialId serialId;
     int8_t rxPin;
     int8_t txPin;
+    int8_t uartNum;
 #else
     void initTwoWireSerial(SerialId id, HardwareSerial *serial);
     void initSoftSerial(SerialId id);

@@ -4,6 +4,21 @@
 #include <SdFat.h>
 #include "driver/i2s_std.h"
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
+
+// ==================================================
+// EspBoatAudio version
+// ==================================================
+#define ESPBOATAUDIO_VERSION_MAJOR 1
+#define ESPBOATAUDIO_VERSION_MINOR 1
+#define ESPBOATAUDIO_VERSION_PATCH 0
+
+#define ESPBOATAUDIO_VERSION_STRING \
+  STR(ESPBOATAUDIO_VERSION_MAJOR) "." \
+  STR(ESPBOATAUDIO_VERSION_MINOR) "." \
+  STR(ESPBOATAUDIO_VERSION_PATCH)
+
 class EspBoatAudio {
 public:
 enum AudioCodec : uint8_t {
@@ -12,34 +27,41 @@ CODEC_IMA_ADPCM = 17
 };
 
 enum VoiceId : uint8_t {
-VOICE_ENGINE_A,
-VOICE_ENGINE_B,
+  VOICE_ENGINE_A,
+  VOICE_ENGINE_B,
 
-VOICE_AMBIENT_A,
-VOICE_AMBIENT_B,
+  VOICE_AMBIENT_A,
+  VOICE_AMBIENT_B,
 
-VOICE_BRIDGE,
-VOICE_RAIN,
-VOICE_THUNDER,
+  VOICE_BRIDGE,
+  VOICE_RAIN,
+  VOICE_THUNDER,
 
-VOICE_RANDOM_A,
-VOICE_RANDOM_B,
+  VOICE_RANDOM_A,
+  VOICE_RANDOM_B,
 
-VOICE_ANCHOR,
+  VOICE_ANCHOR,
 
-VOICE_ALARM,
+  VOICE_ALARM,
 
-VOICE_FX0,
-VOICE_FX1,
-VOICE_FX2,
-VOICE_FX3,
+  VOICE_FX0,
+  VOICE_FX1,
+  VOICE_FX2,
+  VOICE_FX3,
 
+  VOICE_TDG_TURBO,
+  VOICE_TDG_FAN,
+  VOICE_TDG_JAKE,
+  VOICE_TDG_KNOCK,
+  VOICE_TDG_WASTEGATE,
 
-VOICE_COUNT,
-
-// Alias logiques pour compatibilité
-VOICE_ENGINE = VOICE_ENGINE_A,
-VOICE_AMBIENT = VOICE_AMBIENT_A
+  VOICE_COUNT,
+  
+  
+  // Alias de compatibilité
+  VOICE_ENGINE = VOICE_ENGINE_A,
+  VOICE_AMBIENT = VOICE_AMBIENT_A
+  
 };
 
 enum PsramProfile : uint8_t {
@@ -289,6 +311,11 @@ uint32_t durationMs,
 const StartLoopStopItem& startItem,
 const StartLoopStopItem& loopItem,
 const StartLoopStopItem& stopItem);
+
+static const char* version()
+{
+  return ESPBOATAUDIO_VERSION_STRING;
+}
 
 private:
 

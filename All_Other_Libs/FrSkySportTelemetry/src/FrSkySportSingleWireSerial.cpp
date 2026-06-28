@@ -19,6 +19,7 @@ FrSkySportSingleWireSerial::FrSkySportSingleWireSerial()
   hwSerial = NULL;
   rxPin = -1;
   txPin = -1;
+  uartNum = -1;
 #else
   softSerial = NULL;
 #endif
@@ -57,11 +58,30 @@ void FrSkySportSingleWireSerial::initEsp32Serial(SerialId id, HardwareSerial *se
   rxPin = rx;
   txPin = tx;
 
-  // ESP32 / ESP32-S3 S.PORT notes:
-  // - Normal S.PORT is inverted UART at 57600 bauds. Use SERIAL_x_S3.
-  // - SERIAL_x_S3_EXTINV is only for an EXTERNAL inverter / normal UART level.
-  // - S.PORT is single-wire and shared by the receiver and all sensors.
-  //   The ESP32 UART TX output must not keep driving the line while we listen.
+  // Arduino ESP32: Serial1 = UART1, Serial2 = UART2.
+  // Keep the UART opened permanently. Do NOT call end()/begin() inside setMode():
+  // S.Port timing is too short for a full UART restart between RX and TX.
+  if((id == SERIAL_1_S3) || (id == SERIAL_1_S3_EXTINV)) uartNum = 1;
+  else if((id == SERIAL_2_S3) || (id == SERIAL_2_S3_EXTINV)) uartNum = 2;
+  else uartNum = -1;
+
+  const bool invert = ((serialId & EXTINV_FLAG) != EXTINV_FLAG);
+
+  // Normal FrSky S.Port is inverted at 57600 bauds.
+  // EXTINV means: external inverter used, so UART itself is not inverted.
+  hwSerial->begin(57600, SERIAL_8N1, rxPin, txPin, invert);
+
+  // Force plain UART mode. Direction is handled by the GPIO matrix below.
+  if(uartNum >= 0)
+  {
+    uart_set_mode((uart_port_t)uartNum, UART_MODE_UART);
+    uart_set_pin((uart_port_t)uartNum,
+                 txPin >= 0 ? txPin : UART_PIN_NO_CHANGE,
+                 rxPin >= 0 ? rxPin : UART_PIN_NO_CHANGE,
+                 UART_PIN_NO_CHANGE,
+                 UART_PIN_NO_CHANGE);
+  }
+
   setMode(RX);
 }
 
@@ -142,6 +162,11 @@ void FrSkySportSingleWireSerial::begin(SerialId id, int8_t rx, int8_t tx)
   crc = 0;
   setMode(RX);
 }
+
+void FrSkySportSingleWireSerial::begin(SerialId id, int8_t sportPin)
+{
+  begin(id, sportPin, sportPin);
+}
 #endif
 
 void FrSkySportSingleWireSerial::setMode(SerialMode mode)
@@ -153,33 +178,53 @@ void FrSkySportSingleWireSerial::setMode(SerialMode mode)
     else if(mode == RX) *uartCtrl &= ~UART_CTRL_TXDIR_FLAG;
   }
 #elif defined(ESP32_HW)
-  if(hwSerial != NULL)
+  if((hwSerial != NULL) && (uartNum >= 0))
   {
-    const bool invert = ((serialId & EXTINV_FLAG) != EXTINV_FLAG);
+    // ESP32/S3 S.Port handling:
+    // - UART stays alive permanently.
+    // - In RX mode, the S.Port GPIO is released as input.
+    // - In TX mode, the same GPIO, or txPin in 2-wire/diode mode, is connected to UART TX.
+    // This mimics the fast Teensy TXDIR register switch without restarting the UART.
 
-    // Critical for FrSky S.PORT on ESP32/S3:
-    // do not leave TX enabled while waiting for receiver polls.
-    // Reconfiguring the UART is slower than Teensy register TXDIR,
-    // but it reliably releases the single-wire bus on ESP32 cores.
-    hwSerial->flush();
-    hwSerial->end();
+    const bool oneWire = (rxPin >= 0) && (txPin >= 0) && (rxPin == txPin);
 
     if(mode == TX)
     {
+      // Drop any received echo/pending byte before sending our answer.
+      while(hwSerial->available()) hwSerial->read();
+
       if(txPin >= 0)
       {
         pinMode(txPin, OUTPUT);
-        hwSerial->begin(57600, SERIAL_8N1, -1, txPin, invert);
+        uart_set_pin((uart_port_t)uartNum,
+                     txPin,
+                     oneWire ? rxPin : (rxPin >= 0 ? rxPin : UART_PIN_NO_CHANGE),
+                     UART_PIN_NO_CHANGE,
+                     UART_PIN_NO_CHANGE);
       }
     }
     else // RX
     {
-      if(txPin >= 0) pinMode(txPin, INPUT);   // release S.PORT bus
+      // Wait until TX shift register is empty before releasing the line.
+      hwSerial->flush();
+
+      if(txPin >= 0)
+      {
+        pinMode(txPin, INPUT); // release S.Port bus
+      }
+
       if(rxPin >= 0)
       {
         pinMode(rxPin, INPUT);
-        hwSerial->begin(57600, SERIAL_8N1, rxPin, -1, invert);
+        uart_set_pin((uart_port_t)uartNum,
+                     oneWire ? UART_PIN_NO_CHANGE : (txPin >= 0 ? txPin : UART_PIN_NO_CHANGE),
+                     rxPin,
+                     UART_PIN_NO_CHANGE,
+                     UART_PIN_NO_CHANGE);
       }
+
+      // Remove our own echo if RX was connected during TX.
+      while(hwSerial->available()) hwSerial->read();
     }
   }
 #elif defined(__AVR_ATmega328P__) || defined(__AVR_ATmega2560__) || defined(ESP8266)
