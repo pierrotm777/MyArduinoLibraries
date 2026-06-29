@@ -5,6 +5,19 @@ This wrapper was designed with the help of **ChatGPT** to make it easier to use 
 
 ---
 
+## Wiring
+```
+              1N4148
+TX -----------------|<|------+
+                             |
+                             +------ BUS B/D (Multiplex)
+                             |
+RX ----------- 1 kΩ ---------+
+                             |
+GND ------------------------- GND
+```
+---
+
 ## ✨ Features
 
 - ✅ Simple API for common telemetry:
