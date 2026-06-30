@@ -1,5 +1,5 @@
 
-// MPX_MSB.cpp - v2.0.0 (simplified, independent)
+// MPX_MSB.cpp - v2.0.1 (simplified, independent)
 #include "MPX_MSB.h"
 #include <math.h>
 namespace MPX {
@@ -140,20 +140,20 @@ void Mpx_Msb::Vario(float alt_m, float vspd_m_s)
 }
 
 
-void Mpx_Msb::poll(){
+void Mpx_Msb::poll() {
   if (!_ser) return;
-  while (_ser->available()){
-    uint8_t poll = (uint8_t)_ser->read();
 
-    // Respect a small idle delay before answering.
-    // Use micros() instead of elapsedMicros so the code remains portable
-    // across AVR, Teensy, ESP32 and other Arduino-compatible platforms.
+  if (_ser->available()) {
+    uint8_t pollByte = (uint8_t)_ser->read();
+
     uint32_t startUs = micros();
     while ((uint32_t)(micros() - startUs) < _idleUs) {
-      /* spin */
+#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+      yield();
+#endif
     }
 
-    replyIfAsked((uint8_t)(poll & 0x0F));
+    replyIfAsked((uint8_t)(pollByte & 0x0F));
   }
 }
 

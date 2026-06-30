@@ -19,3 +19,12 @@ TX1 (pin 1) ? étage open-collector ? B/D
 Pull-up 4,7 kO ? 3,3 V (côté bus, si le RX n’a pas déjà un pull-up interne à 5 V — on préfère mettre le nôtre en 3,3 V pour protéger le Teensy)
 
 GND commun récepteur ? Teensy
+
+              1N4148
+TX -----------------|<|------+
+                             |
+                             +------ BUS B/D (Multiplex)
+                             |
+RX ----------- 1 kO ---------+
+                             |
+GND ------------------------- GND
