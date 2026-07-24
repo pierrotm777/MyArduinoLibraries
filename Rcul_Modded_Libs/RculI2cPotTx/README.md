@@ -87,6 +87,8 @@ Documents/Arduino/libraries/RculI2cPotTx
 Dépendances :
 
 - `Rcul`;
+- `SoftRcPulseIn`;
+- `RculPWMRead`;
 - `RcTxSerial` pour l’émission des messages ;
 - `Wire`, fourni avec Arduino ;
 - `TinyWireM` uniquement pour ATtiny45/85.
