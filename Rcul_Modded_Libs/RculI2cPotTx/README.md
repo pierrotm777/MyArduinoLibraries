@@ -152,7 +152,7 @@ bool begin(
 );
 ```
 
-Le dernier argument n’existe pas dans la compilation ATtiny45/85.
+Le dernier argument n’existe pas dans la compilation ATtiny85.
 
 Exemple ESP32-C3 avec DS3502 :
 
