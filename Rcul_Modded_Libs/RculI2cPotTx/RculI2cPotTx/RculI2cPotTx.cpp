@@ -43,20 +43,16 @@ static const uint8_t Ds3502RculWiperTable[RCUL_I2C_POT_TX_RCUL_SYMBOL_NB] =
  * - charge les limites propres au composant;
  * - applique au DS3502 la plage RCUL 1024..1976 us.
  */
-RculI2cPotTxClass::RculI2cPotTxClass(RculI2cPotType_t PotType,
-                                               uint8_t PotChannel) :
+RculI2cPotTxClass::RculI2cPotTxClass(RculI2cPotType_t PotType) :
 #if !RCUL_I2C_POT_TX_USE_TINYWIREM
   _Wire(NULL),
 #endif
-  _PotType(PotType),
-  _PotChannel((PotType == AD5282 && PotChannel == 1) ? 1 : 0),
-  _Address(0),
+  _PotType(PotType), _Address(0),
   _PeriodMs(RCUL_I2C_POT_TX_DEFAULT_PERIOD_MS), _StartMs(0), _Synchro(0),
   _SdaPin(SDA), _SclPin(SCL),
   _I2cFrequency(RCUL_I2C_POT_TX_DEFAULT_I2C_FREQUENCY),
   _SyncroMode(RCUL_I2C_POT_SYNCRO_MODE_INTERNAL),
   _PpmInSyncSource(NULL),
-  _PpmInSyncClientIdx(0xFF),
   _MinWidthUs(RCUL_I2C_POT_TX_DEFAULT_MIN_WIDTH_US),
   _MaxWidthUs(RCUL_I2C_POT_TX_DEFAULT_MAX_WIDTH_US),
   _MinWiper(0), _MaxWiper(0), _DeviceMaxWiper(0),
@@ -112,18 +108,16 @@ RculI2cPotTxClass::RculI2cPotTxClass(RculI2cPotType_t PotType,
  */
 RculI2cPotTxClass::RculI2cPotTxClass(
     RculI2cPotType_t PotType,
-    RculI2cPotSyncInternal_t,
-    uint8_t PotChannel) :
-  RculI2cPotTxClass(PotType, PotChannel)
+    RculI2cPotSyncInternal_t) :
+  RculI2cPotTxClass(PotType)
 {
 }
 
 RculI2cPotTxClass::RculI2cPotTxClass(
     RculI2cPotType_t PotType,
     RculI2cPotSyncPpmIn_t,
-    Rcul &PpmInSyncSource,
-    uint8_t PotChannel) :
-  RculI2cPotTxClass(PotType, PotChannel)
+    Rcul &PpmInSyncSource) :
+  RculI2cPotTxClass(PotType)
 {
   _SyncroMode = RCUL_I2C_POT_SYNCRO_MODE_PPMIN;
   _PpmInSyncSource = &PpmInSyncSource;
@@ -131,9 +125,8 @@ RculI2cPotTxClass::RculI2cPotTxClass(
 
 RculI2cPotTxClass::RculI2cPotTxClass(
     RculI2cPotType_t PotType,
-    RculI2cPotSyncCallback_t,
-    uint8_t PotChannel) :
-  RculI2cPotTxClass(PotType, PotChannel)
+    RculI2cPotSyncCallback_t) :
+  RculI2cPotTxClass(PotType)
 {
   _SyncroMode = RCUL_I2C_POT_SYNCRO_MODE_CALLBACK;
 }
@@ -143,31 +136,26 @@ RculI2cPotTxClass::RculI2cPotTxClass(
  */
 uint8_t RculI2cPotTxClass::defaultAddress(void) const
 {
-  if(_PotType == DS3502) return RCUL_I2C_POT_TX_DS3502_ADDRESS;
-  if(_PotType == AD5282) return RCUL_I2C_POT_TX_AD5282_ADDRESS;
-  return RCUL_I2C_POT_TX_MCP4561_ADDRESS;
+  return (_PotType == DS3502) ? RCUL_I2C_POT_TX_DS3502_ADDRESS
+                              : RCUL_I2C_POT_TX_MCP4561_ADDRESS;
 }
 
 uint16_t RculI2cPotTxClass::defaultMinWiper(void) const
 {
-  if(_PotType == DS3502) return RCUL_I2C_POT_TX_DS3502_WIPER_MIN;
-  if(_PotType == AD5282) return RCUL_I2C_POT_TX_AD5282_WIPER_MIN;
-  return RCUL_I2C_POT_TX_MCP4561_WIPER_MIN;
+  return (_PotType == DS3502) ? RCUL_I2C_POT_TX_DS3502_WIPER_MIN
+                              : RCUL_I2C_POT_TX_MCP4561_WIPER_MIN;
 }
 
 uint16_t RculI2cPotTxClass::defaultMaxWiper(void) const
 {
-  if(_PotType == DS3502) return RCUL_I2C_POT_TX_DS3502_WIPER_MAX;
-  if(_PotType == AD5282) return RCUL_I2C_POT_TX_AD5282_WIPER_MAX;
-  return RCUL_I2C_POT_TX_MCP4561_WIPER_MAX;
+  return (_PotType == DS3502) ? RCUL_I2C_POT_TX_DS3502_WIPER_MAX
+                              : RCUL_I2C_POT_TX_MCP4561_WIPER_MAX;
 }
 
 void RculI2cPotTxClass::loadDeviceDefaults(void)
 {
-  if(_PotType == DS3502) _DeviceMaxWiper = RCUL_I2C_POT_TX_DS3502_MAX_WIPER;
-  else if(_PotType == AD5282) _DeviceMaxWiper = RCUL_I2C_POT_TX_AD5282_MAX_WIPER;
-  else _DeviceMaxWiper = RCUL_I2C_POT_TX_MCP4561_MAX_WIPER;
-
+  _DeviceMaxWiper = (_PotType == DS3502) ? RCUL_I2C_POT_TX_DS3502_MAX_WIPER
+                                         : RCUL_I2C_POT_TX_MCP4561_MAX_WIPER;
   _MinWiper = defaultMinWiper();
   _MaxWiper = defaultMaxWiper();
   _CustomWiperRange = false;
@@ -323,25 +311,9 @@ bool RculI2cPotTxClass::writeDs3502(uint16_t Wiper)
   return (i2cEndTransmission() == 0);
 }
 
-bool RculI2cPotTxClass::writeAd5282(uint16_t Wiper)
-{
-  Wiper = constrain(Wiper, (uint16_t)0,
-                    (uint16_t)RCUL_I2C_POT_TX_AD5282_MAX_WIPER);
-
-  /* AD5282: B7=0 selection RDAC0, B7=1 selection RDAC1. */
-  const uint8_t Instruction = (_PotChannel == 1) ? 0x80 : 0x00;
-
-  i2cBeginTransmission(_Address);
-  i2cWrite(Instruction);
-  i2cWrite((uint8_t)Wiper);
-  return (i2cEndTransmission() == 0);
-}
-
 bool RculI2cPotTxClass::writeDeviceWiper(uint16_t Wiper)
 {
-  if(_PotType == DS3502) return writeDs3502(Wiper);
-  if(_PotType == AD5282) return writeAd5282(Wiper);
-  return writeMcp4561(Wiper);
+  return (_PotType == DS3502) ? writeDs3502(Wiper) : writeMcp4561(Wiper);
 }
 
 /*
@@ -387,12 +359,7 @@ uint8_t RculI2cPotTxClass::isSynchro(uint8_t SynchroClientIdx)
       return 0;
     }
 
-    const uint8_t SourceClientIdx =
-        (_PpmInSyncClientIdx == 0xFF)
-        ? SynchroClientIdx
-        : _PpmInSyncClientIdx;
-
-    return _PpmInSyncSource->RculIsSynchro(SourceClientIdx);
+    return _PpmInSyncSource->RculIsSynchro(SynchroClientIdx);
   }
 
   const uint8_t ClientMask = RCUL_CLIENT_MASK(SynchroClientIdx);
@@ -417,16 +384,6 @@ void RculI2cPotTxClass::syncPulse(void)
 uint8_t RculI2cPotTxClass::getSyncroMode(void) const
 {
   return _SyncroMode;
-}
-
-void RculI2cPotTxClass::setPpmInSyncClientIdx(uint8_t ClientIdx)
-{
-  _PpmInSyncClientIdx = ClientIdx;
-}
-
-uint8_t RculI2cPotTxClass::getPpmInSyncClientIdx(void) const
-{
-  return _PpmInSyncClientIdx;
 }
 
 /*
@@ -471,7 +428,8 @@ uint16_t RculI2cPotTxClass::widthToWiper(uint16_t Width_us) const
    * centers. Other values (initial neutral, manual tests, calibration, etc.)
    * continue to use the normal linear conversion.
    */
-  if(Width_us >= RCUL_I2C_POT_TX_RCUL_MIN_WIDTH_US &&
+  if(_PotType == DS3502 &&
+     Width_us >= RCUL_I2C_POT_TX_RCUL_MIN_WIDTH_US &&
      Width_us <= RCUL_I2C_POT_TX_DS3502_MAX_WIDTH_US)
   {
     const uint16_t Offset = Width_us - RCUL_I2C_POT_TX_RCUL_MIN_WIDTH_US;
@@ -489,10 +447,7 @@ uint16_t RculI2cPotTxClass::widthToWiper(uint16_t Width_us) const
           return _StoredRculWiperTable[SymbolIdx];
         }
 #endif
-        if(_PotType == DS3502)
-        {
-          return Ds3502RculWiperTable[SymbolIdx];
-        }
+        return Ds3502RculWiperTable[SymbolIdx];
       }
     }
   }
@@ -593,11 +548,6 @@ uint16_t RculI2cPotTxClass::tableCrc(
   Crc = crc16Update(
       Crc,
       (uint8_t)_PotType);
-
-  if(_PotType == AD5282)
-  {
-    Crc = crc16Update(Crc, _PotChannel);
-  }
 
   for(uint8_t Idx = 0;
       Idx < RCUL_I2C_POT_TX_RCUL_SYMBOL_NB;
@@ -967,7 +917,9 @@ bool RculI2cPotTxClass::startRculTableCalibration(
   return true;
 }
 
-void RculI2cPotTxClass::processRculTableCalibration(void){
+void RculI2cPotTxClass::
+processRculTableCalibration(void)
+{
   if(!_CalibrationActive ||
      !_CalibrationPwmSource)
   {
@@ -1176,7 +1128,6 @@ uint16_t RculI2cPotTxClass::getWiper(void) const { return _CurrentWiper; }
 uint16_t RculI2cPotTxClass::getMaxWiper(void) const { return _DeviceMaxWiper; }
 uint8_t RculI2cPotTxClass::getI2cAddress(void) const { return _Address; }
 RculI2cPotType_t RculI2cPotTxClass::getPotType(void) const { return _PotType; }
-uint8_t RculI2cPotTxClass::getPotChannel(void) const { return _PotChannel; }
 
 /*
  * Test de presence I2C par transmission vide vers l'adresse active.
@@ -1217,15 +1168,7 @@ void RculI2cPotTxClass::printInfo(Stream &Out)
 {
   Out.println(F("----------------------------------------"));
   Out.print(F("RculI2cPotTx V")); Out.println(F(RCUL_I2C_POT_TX_VERSION_STRING));
-  Out.print(F("Pot type     : "));
-  if(_PotType == DS3502) Out.println(F("DS3502"));
-  else if(_PotType == AD5282) Out.println(F("AD5282"));
-  else Out.println(F("MCP4561"));
-
-  if(_PotType == AD5282)
-  {
-    Out.print(F("Pot channel  : ")); Out.println(_PotChannel);
-  }
+  Out.print(F("Pot type     : ")); Out.println(_PotType == DS3502 ? F("DS3502") : F("MCP4561"));
 #if RCUL_I2C_POT_TX_USE_TINYWIREM
   Out.println(F("I2C driver   : TinyWireM"));
 #else

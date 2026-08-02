@@ -11,7 +11,7 @@ static RculI2cPotTxClass RculI2cPotTx(RCUL_I2C_POT_DEVICE);
 #include <RcTxSerial.h>
 
 // ============================================================================
-// I2C pins
+// I2C BUS SHARED BY THE DIGITAL POTENTIOMETER AND PCF8574
 // ============================================================================
 //Uno
 //#define SDA_PIN A4
@@ -20,12 +20,20 @@ static RculI2cPotTxClass RculI2cPotTx(RCUL_I2C_POT_DEVICE);
 #define SDA_PIN 5
 #define SCL_PIN 6
 
+/* Possible speeds:
+   RCUL_I2C_POT_TX_DEFAULT_I2C_FREQUENCY = 100000UL
+   RCUL_I2C_POT_TX_FAST_I2C_FREQUENCY    = 400000UL
+
+   ESP32: SDA_PIN and SCL_PIN select the I2C pins.
+   AVR  : the hardware SDA/SCL pins are fixed by the selected board. */
 #define I2C_FREQUENCY RCUL_I2C_POT_TX_DEFAULT_I2C_FREQUENCY
 // #define I2C_FREQUENCY RCUL_I2C_POT_TX_FAST_I2C_FREQUENCY
 
 // ============================================================================
 // DIGITAL POTENTIOMETER
 // ============================================================================
+/* Automatic address: MCP4561=0x2C, DS3502=0x28.
+   A different address can be forced if required. */
 #define DIGIPOT_ADDRESS RCUL_I2C_POT_TX_AUTO_ADDRESS
 // #define DIGIPOT_ADDRESS 0x2D
 
@@ -44,47 +52,20 @@ static RculI2cPotTxClass RculI2cPotTx(RCUL_I2C_POT_DEVICE);
 
    For a PCF8574A, the address range is normally 0x38..0x3F.
 
-   Switch wiring:
-      P0..P7 ---- switch ---- GND
+   Wiring of each switch:
+      PCF8574 P0..P7 ---- switch ---- GND
 
-   P0 = SW1 ... P7 = SW8.
-   Closed switch = LOW on the PCF8574, then inverted to logical 1. */
-#define PCF8574_ADDRESS 0x38
+   The PCF8574 pins are quasi-bidirectional. Writing 1 releases a pin and lets
+   it be used as an input. Closed switches therefore read LOW and are inverted
+   below so that a closed switch gives a logical RCUL value of 1. */
+#define PCF8574_ADDRESS 0x20
+
+// Debounce: a new value must remain unchanged for this duration.
 #define SWITCH_DEBOUNCE_MS 20UL
 
 // ============================================================================
-// Analog proportional input
+// RCUL SERIAL TRANSMITTER
 // ============================================================================
-/* Potentiometer wiring:
-     one end -> board VCC
-     wiper   -> PROP_PIN
-     other end -> GND
-
-   The analog value is converted to 0..255. */
-#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
-  #define PROP_PIN     0
-  #define PROP_ADC_MAX 4095UL
-#else
-  #define PROP_PIN     A0
-  #define PROP_ADC_MAX 1023UL
-#endif
-
-// ============================================================================
-// RCUL message format
-// ============================================================================
-/* Known modes:
-     SW8          MLEN=4
-     SW8+PROP     MLEN=6
-     SW16         MLEN=6
-     ANGLE+PROP   MLEN=7
-     SW16+PROP    MLEN=8
-
-   SW8+PROP payload:
-     Byte[0] = PROP
-     Byte[1] = SW8
-
-   Payload = 16 bits = 4 nibbles.
-   RcTxSerial adds framing, therefore MLEN=6. */
 #define RCUL_REPEAT  5
 #define RCUL_CHANNEL 8
 
@@ -93,14 +74,14 @@ static RcTxSerial MyRcTxSerial(&RculI2cPotTx,
                                8,
                                RCUL_CHANNEL);
 
+// Current debounced state: bit 0 = SW1/P0 ... bit 7 = SW8/P7.
 static uint8_t Contacts = 0;
 static uint8_t CandidateContacts = 0;
 static uint32_t CandidateSinceMs = 0;
-static uint8_t Prop = 0;
 static uint32_t LastPrintMs = 0;
 
 // ============================================================================
-// PCF8574 low-level access
+// PCF8574 LOW-LEVEL ACCESS
 // ============================================================================
 static bool pcf8574Write(uint8_t Value)
 {
@@ -124,7 +105,7 @@ static bool pcf8574Read(uint8_t &Value)
 
 static bool pcf8574Begin(void)
 {
-  // Writing 1 releases each quasi-bidirectional pin for input use.
+  /* A written 1 releases every quasi-bidirectional pin for input use. */
   if(!pcf8574Write(0xFF))
   {
     return false;
@@ -143,7 +124,7 @@ static bool pcf8574Begin(void)
 }
 
 // ============================================================================
-// Inputs
+// SWITCH READING AND DEBOUNCE
 // ============================================================================
 static void updateContacts(void)
 {
@@ -153,6 +134,7 @@ static void updateContacts(void)
     return;
   }
 
+  /* Closed switch = LOW on PCF8574 = 1 in the RCUL contact byte. */
   const uint8_t NewContacts = (uint8_t)~Raw;
 
   if(NewContacts != CandidateContacts)
@@ -166,13 +148,19 @@ static void updateContacts(void)
      ((uint32_t)(millis() - CandidateSinceMs) >= SWITCH_DEBOUNCE_MS))
   {
     Contacts = CandidateContacts;
-  }
-}
 
-static void updateProp(void)
-{
-  const uint32_t Raw = (uint32_t)analogRead(PROP_PIN);
-  Prop = (uint8_t)((Raw * 255UL + (PROP_ADC_MAX / 2UL)) / PROP_ADC_MAX);
+    Serial.print(F("Contacts = 0b"));
+    for(int8_t Bit = 7; Bit >= 0; --Bit)
+    {
+      Serial.print((Contacts >> Bit) & 0x01);
+    }
+    Serial.print(F("  0x"));
+    if(Contacts < 0x10)
+    {
+      Serial.print('0');
+    }
+    Serial.println(Contacts, HEX);
+  }
 }
 
 void setup()
@@ -181,17 +169,20 @@ void setup()
   delay(300);
 
   Serial.println();
-  Serial.println(F("RculI2cPotTx + PCF8574 - SW8+PROP"));
+  Serial.println(F("RculI2cPotTx + PCF8574 8 switches"));
 
-#if defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
-  analogReadResolution(12);
-#endif
-  pinMode(PROP_PIN, INPUT);
+  /* Optional digital-potentiometer wiper range.
 
-  // Optional digital-potentiometer range. Defaults: MCP4561=4..252, DS3502=2..125.
-  // RculI2cPotTx.setWiperRange(0, RculI2cPotTx.getMaxWiper()); // full range
-  // RculI2cPotTx.setWiperRange(10, 245);  // reduced range
+     If setWiperRange() is not called: MCP4561=4..252, DS3502=2..125.
 
+     Examples:
+       RculI2cPotTx.setWiperRange(0, RculI2cPotTx.getMaxWiper()); // full selected-device range
+       RculI2cPotTx.setWiperRange(10, 245);  // reduced custom range
+
+     Channel reversal must be configured in the radio. */
+  // RculI2cPotTx.setWiperRange(10, 245);
+
+  /* begin() initializes the shared Wire bus and the selected digital potentiometer. */
   if(!RculI2cPotTx.begin(SDA_PIN,
                          SCL_PIN,
                          I2C_FREQUENCY,
@@ -209,42 +200,36 @@ void setup()
     return;
   }
 
-  updateProp();
-
   RculI2cPotTx.printInfo(Serial);
+
   Serial.print(F("PCF8574 address: 0x"));
   Serial.println(PCF8574_ADDRESS, HEX);
-  Serial.println(F("Payload order: PROP then SW8; 4 payload nibbles; MLEN=6"));
+  Serial.println(F("P0=SW1 ... P7=SW8; closed switch = ON"));
 }
 
 void loop()
 {
   updateContacts();
-  updateProp();
 
   RculI2cPotTx.process();
 
   if(MyRcTxSerial.isReadyForTx())
   {
-    uint8_t Message[2];
-    Message[0] = Prop;
-    Message[1] = Contacts;
-
-    MyRcTxSerial.sendNibbleMsg(Message, 4, 1);
+    /* Eight contacts = 8 bits = 2 nibbles.
+       One message byte is generated directly from P0..P7:
+         P0 -> bit 0 / SW1
+         ...
+         P7 -> bit 7 / SW8 */
+    MyRcTxSerial.sendNibbleMsg(&Contacts, 2, 1);
   }
 
   RcTxSerial::process();
 
+  /* Optional periodic debug of the dynamic digital-potentiometer position. */
   if((uint32_t)(millis() - LastPrintMs) >= 1000UL)
   {
     LastPrintMs = millis();
-
-    Serial.print(F("PROP="));
-    Serial.print(Prop);
-    Serial.print(F(" Contacts=0x"));
-    if(Contacts < 0x10) Serial.print('0');
-    Serial.print(Contacts, HEX);
-    Serial.print(F(" Wiper="));
+    Serial.print(F("Wiper="));
     Serial.print(RculI2cPotTx.getWiper());
     Serial.print('/');
     Serial.println(RculI2cPotTx.getMaxWiper());

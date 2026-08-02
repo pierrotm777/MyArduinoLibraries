@@ -2,19 +2,7 @@
 
 Bibliothèque Arduino permettant à `RcTxSerial` d’émettre un flux **RCUL / X-Any** à travers une entrée analogique de radiocommande, en remplaçant le potentiomètre de la voie par un potentiomètre numérique I²C.
 
-Version documentée : **1.10.1**
-
-
-
-## Nouveautés de la version 1.10.1
-
-- Support du **MCP4561**, **DS3502** et **AD5282**.
-- Modes de synchronisation **INTERNAL**, **PPMIN** et **CALLBACK**.
-- Calibration automatique de la table RCUL via `RculPWMRead`.
-- Sauvegarde automatique de la table calibrée (EEPROM AVR / Preferences ESP32).
-- Rechargement optionnel avec `useStoredRculTable()`.
-- Support de l'AD5282 double RDAC (canaux 0 et 1).
-
+Version documentée : **1.8.2**
 
 ## 1. Objectif
 
@@ -584,77 +572,3 @@ Le choix explicite du DS3502 est une extension, pas une rupture d’API.
 `RculI2cPotTx` s’appuie sur l’interface `Rcul` et sur les bibliothèques `RcTxSerial` / `RcRxSerial` de RC Navy.
 
 Vérifier et respecter les licences des bibliothèques d’origine lors de toute redistribution.
-
-
-## AD5282 (ajoute en V1.10.1)
-
-La bibliotheque gere maintenant trois composants : `DS3502`, `MCP4561` et
-`AD5282`. L'AD5282 contient deux potentiometres de 256 positions à la meme
-adresse I2C (adresse par defaut `0x2C`).
-
-```cpp
-RculI2cPotTxClass Pot0(AD5282, RCUL_I2C_POT_SYNCRO_BY_PPMIN, Cppm32, 0);
-RculI2cPotTxClass Pot1(AD5282, RCUL_I2C_POT_SYNCRO_BY_PPMIN, Cppm32, 1);
-```
-
-Lorsque deux instances partagent la meme source PPM, attribuer un index de
-client distinct a chacune :
-
-```cpp
-Pot0.setPpmInSyncClientIdx(5);
-Pot1.setPpmInSyncClientIdx(6);
-```
-
-
----
-
-# Complément V1.10.1
-
-## AD5282
-
-L'AD5282 est maintenant supporté en plus du MCP4561 et du DS3502.
-
-```cpp
-static RculI2cPotTxClass Pot0(
-    AD5282,
-    RCUL_I2C_POT_SYNCRO_BY_PPMIN,
-    Cppm32,
-    RCUL_I2C_POT_TX_AD5282_CHANNEL_0);
-
-static RculI2cPotTxClass Pot1(
-    AD5282,
-    RCUL_I2C_POT_SYNCRO_BY_PPMIN,
-    Cppm32,
-    RCUL_I2C_POT_TX_AD5282_CHANNEL_1);
-```
-
-## Synchronisation
-
-Trois modes sont disponibles :
-
-- INTERNAL (défaut)
-- PPMIN
-- CALLBACK
-
-## Calibration automatique
-
-La commande `c` lance la calibration automatique.
-
-La table est :
-
-- calculée,
-- utilisée immédiatement,
-- sauvegardée automatiquement.
-
-Au démarrage, la table sauvegardée peut être rechargée par :
-
-```cpp
-Pot.useStoredRculTable();
-```
-
-Pour plusieurs instances ESP32 :
-
-```cpp
-Pot0.setTableStoragePreferences("RculAD0");
-Pot1.setTableStoragePreferences("RculAD1");
-```

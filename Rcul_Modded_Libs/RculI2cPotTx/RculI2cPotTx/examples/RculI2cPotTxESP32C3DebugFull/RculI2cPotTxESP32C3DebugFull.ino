@@ -180,14 +180,9 @@ static bool i2cProbe(uint8_t address)
 
 static uint8_t findPOTAddress(void)
 {
-/*
-	MCP4561 : 0x2E à 0x2F, 2 adresses
-	MCP4661 : 0x28 à 0x2F, 8 adresses
-*/
   // Dedicated candidate list: never return the OLED or the GPIO expander.
-  static const uint8_t addresses[] = {0x2E, 0x2F, //MCP4561 / MCP4661
-									  0x28, 0x29, 0x2A, 0x2B, //DS3502 / MCP4661
-									  0x2C, 0x2D //MPC4661
+  static const uint8_t addresses[] = {0x2E, 0x2F, //POT
+									  0x28, 0x29, 0x2A, 0x2B //DS3502
 									  };
   for (uint8_t i = 0; i < sizeof(addresses); ++i) {
     if (i2cProbe(addresses[i])) return addresses[i];

@@ -41,9 +41,9 @@
  */
 #define RCUL_I2C_POT_TX_VERSION                 1
 #define RCUL_I2C_POT_TX_REVISION                10
-#define RCUL_I2C_POT_TX_PATCH                   1
-#define RCUL_I2C_POT_TX_VERSION_STRING          "1.10.1"
-#define RCUL_I2C_POT_TX_VERSION_NUM             0x010A01
+#define RCUL_I2C_POT_TX_PATCH                   0
+#define RCUL_I2C_POT_TX_VERSION_STRING          "1.10.0"
+#define RCUL_I2C_POT_TX_VERSION_NUM             0x010A00
 
 #define RCUL_I2C_POT_TX_DEFAULT_PERIOD_MS       18
 
@@ -88,18 +88,12 @@ struct RculI2cPotSyncCallback_t {};
 #define RCUL_I2C_POT_TX_AUTO_ADDRESS            0xFF
 #define RCUL_I2C_POT_TX_MCP4561_ADDRESS         0x2C
 #define RCUL_I2C_POT_TX_DS3502_ADDRESS          0x28
-#define RCUL_I2C_POT_TX_AD5282_ADDRESS          0x2C
 #define RCUL_I2C_POT_TX_MCP4561_MAX_WIPER       256
 #define RCUL_I2C_POT_TX_DS3502_MAX_WIPER        127
-#define RCUL_I2C_POT_TX_AD5282_MAX_WIPER        255
 #define RCUL_I2C_POT_TX_MCP4561_WIPER_MIN       4
 #define RCUL_I2C_POT_TX_MCP4561_WIPER_MAX       252
 #define RCUL_I2C_POT_TX_DS3502_WIPER_MIN        0
 #define RCUL_I2C_POT_TX_DS3502_WIPER_MAX        127
-#define RCUL_I2C_POT_TX_AD5282_WIPER_MIN        0
-#define RCUL_I2C_POT_TX_AD5282_WIPER_MAX        255
-#define RCUL_I2C_POT_TX_AD5282_CHANNEL_0        0
-#define RCUL_I2C_POT_TX_AD5282_CHANNEL_1        1
 #define RCUL_I2C_POT_TX_DS3502_MIN_WIDTH_US      1024
 #define RCUL_I2C_POT_TX_DS3502_MAX_WIDTH_US      1976
 
@@ -136,8 +130,7 @@ typedef enum
 typedef enum
 {
   MCP4561 = 0,
-  DS3502  = 1,
-  AD5282  = 2
+  DS3502  = 1
 } RculI2cPotType_t;
 
 /*
@@ -155,7 +148,6 @@ class RculI2cPotTxClass : public Rcul
     TwoWire *_Wire;
 #endif
     RculI2cPotType_t _PotType;
-    uint8_t _PotChannel;
     uint8_t _Address;
     uint8_t _PeriodMs;
     uint8_t _StartMs;
@@ -166,7 +158,6 @@ class RculI2cPotTxClass : public Rcul
 
     uint8_t _SyncroMode;
     Rcul *_PpmInSyncSource;
-    uint8_t _PpmInSyncClientIdx;
 
     uint16_t _MinWidthUs;
     uint16_t _MaxWidthUs;
@@ -216,7 +207,6 @@ class RculI2cPotTxClass : public Rcul
     bool configureDs3502Volatile(void);
     bool writeMcp4561(uint16_t Wiper);
     bool writeDs3502(uint16_t Wiper);
-    bool writeAd5282(uint16_t Wiper);
     bool writeDeviceWiper(uint16_t Wiper);
     uint16_t widthToWiper(uint16_t Width_us) const;
 
@@ -247,15 +237,13 @@ class RculI2cPotTxClass : public Rcul
     /*
      * Constructeur historique: synchronisation interne par defaut.
      */
-    explicit RculI2cPotTxClass(RculI2cPotType_t PotType = MCP4561,
-                                    uint8_t PotChannel = 0);
+    explicit RculI2cPotTxClass(RculI2cPotType_t PotType = MCP4561);
 
     /*
      * Selection explicite du mode interne.
      */
     RculI2cPotTxClass(RculI2cPotType_t PotType,
-                      RculI2cPotSyncInternal_t,
-                      uint8_t PotChannel = 0);
+                      RculI2cPotSyncInternal_t);
 
     /*
      * Mode PPM IN: la reference Rcul est obligatoire.
@@ -263,15 +251,13 @@ class RculI2cPotTxClass : public Rcul
      */
     RculI2cPotTxClass(RculI2cPotType_t PotType,
                       RculI2cPotSyncPpmIn_t,
-                      Rcul &PpmInSyncSource,
-                      uint8_t PotChannel = 0);
+                      Rcul &PpmInSyncSource);
 
     /*
      * Mode callback: syncPulse() injecte chaque top.
      */
     RculI2cPotTxClass(RculI2cPotType_t PotType,
-                      RculI2cPotSyncCallback_t,
-                      uint8_t PotChannel = 0);
+                      RculI2cPotSyncCallback_t);
 
     bool begin(uint8_t SdaPin = SDA,
                uint8_t SclPin = SCL,
@@ -300,8 +286,6 @@ class RculI2cPotTxClass : public Rcul
     void syncPulse(void);
 
     uint8_t getSyncroMode(void) const;
-    void setPpmInSyncClientIdx(uint8_t ClientIdx);
-    uint8_t getPpmInSyncClientIdx(void) const;
     bool setWiperRange(uint16_t MinWiper, uint16_t MaxWiper);
     bool setCalibration(uint16_t MinWidthUs, uint16_t MaxWidthUs,
                         uint16_t MinWiper, uint16_t MaxWiper);
@@ -341,7 +325,6 @@ class RculI2cPotTxClass : public Rcul
     uint16_t getMaxWiper(void) const;
     uint8_t getI2cAddress(void) const;
     RculI2cPotType_t getPotType(void) const;
-    uint8_t getPotChannel(void) const;
     bool isConnected(void);
     void printInfo(Stream &Out);
 
@@ -353,7 +336,7 @@ class RculI2cPotTxClass : public Rcul
 /*
  * Instance globale historique.
  * Definir RCUL_I2C_POT_TX_CUSTOM_INSTANCE avant l'inclusion du fichier
- * pour creer soi-meme une instance DS3502, MCP4561 ou AD5282 du meme nom.
+ * pour creer soi-meme une instance DS3502 ou MCP4561 du meme nom.
  */
 #ifndef RCUL_I2C_POT_TX_CUSTOM_INSTANCE
 extern RculI2cPotTxClass RculI2cPotTx;
