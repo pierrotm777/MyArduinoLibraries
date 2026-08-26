@@ -2,9 +2,79 @@
 
 Bibliothèque Arduino permettant à `RcTxSerial` d’émettre un flux **RCUL / X-Any** à travers une entrée analogique de radiocommande, en remplaçant le potentiomètre de la voie par un potentiomètre numérique I²C.
 
-Version documentée : **1.10.1**
+Version documentée : **1.10.6**
 
 
+
+
+## Nouveautés de la version 1.10.6
+
+- Le profil `RCUL_I2C_POT_SYNCRO_BY_CALLBACK_PTR_6A` applique maintenant automatiquement un offset de **2750 us**.
+- Aucun `setCallbackSyncOffsetUs(2750)` n'est nécessaire dans un sketch PTR-6A normal.
+- La valeur reste modifiable par `setCallbackSyncOffsetUs()` pour un autre émetteur ou un autre point de fonctionnement.
+- Le test `RculI2cPotTx_CALLBACK_PTR_6A_Test` affiche la phase réellement active.
+- L'exemple `RculI2cPotTx_Nano_PTR6A_PhaseSweep_SW8` est conservé : il écrase volontairement l'offset par défaut et permet de balayer la phase pour caractériser d'autres émetteurs.
+- Résultat de référence PTR-6A : **2750 us / RepeatNb=2 / filtre RX=0 / 100 %** lors des essais de validation.
+
+## Nouveautés de la version 1.10.5
+
+- Ajout d'un offset de phase CALLBACK **non bloquant**.
+- Nouvelle API :
+  ```cpp
+  RculI2cPotTx.setCallbackSyncOffsetUs(1500);
+  uint16_t Offset = RculI2cPotTx.getCallbackSyncOffsetUs();
+  ```
+- `0 us` conserve le comportement V1.10.4.
+- Exemple Nano PTR-6A + PCF8574A SW8 avec balayage `0..3500 us` par pas de `500 us`, puis réglage fin par pas de `100 us`.
+- `printInfo()` affiche maintenant `Sync offset`.
+
+## Nouveautés de la version 1.10.4
+
+- Tous les fichiers source `.h` et `.cpp` de la bibliothèque sont désormais rangés dans le dossier `src/`. Les exemples, images, `README.md`, `keywords.txt` et `library.properties` restent à leur emplacement précédent.
+- Profil PTR-6A : le top RCUL reste généré à la fin (front descendant) du paquet court GDO0.
+- Le diagnostic `getCallbackCycleUs()` mesure maintenant la période entre les **fronts montants** de deux paquets courts valides, afin que les variations de largeur observées (~804..816 us ou ~964..984 us) ne créent plus artificiellement des mesures autour de ~19.8 / ~20.17 ms.
+- Un commentaire détaillé expliquant ce choix est ajouté dans `src/CallbackSynchro.cpp`.
+
+## Nouveautés de la version 1.10.3
+
+- Ajout de la structure de profils **CALLBACK_SYNCHRO**.
+- Premier profil : **PTR-6A**, basé sur le signal `GDO0` du CC2500 observé avec FlyDream V3.
+- Nouveau marqueur de constructeur : `RCUL_I2C_POT_SYNCRO_BY_CALLBACK_PTR_6A`.
+- Le troisième argument du constructeur devient simplement la broche de synchronisation, par exemple `GDO0_PIN`.
+- Détection portable par `digitalRead()` + `micros()` : aucun Timer1, aucune ISR spécifique AVR, donc même logique sur Nano, ESP32 et Teensy.
+- Le mode `RCUL_I2C_POT_SYNCRO_BY_CALLBACK` historique reste inchangé et continue d'utiliser `syncPulse()` fourni par le sketch.
+- Profil PTR-6A actuel : impulsion active HIGH `600..1200 us`, garde minimale `15 ms`, top au front descendant du paquet court.
+
+Exemple d'initialisation PTR-6A :
+
+```cpp
+static RculI2cPotTxClass RculI2cPotTx(
+    RCUL_I2C_POT_DEVICE,
+    RCUL_I2C_POT_SYNCRO_BY_CALLBACK_PTR_6A,
+    GDO0_PIN
+);
+```
+
+Pour revenir au PPM IN, seule la source de synchronisation change :
+
+```cpp
+static RculI2cPotTxClass RculI2cPotTx(
+    RCUL_I2C_POT_DEVICE,
+    RCUL_I2C_POT_SYNCRO_BY_PPMIN,
+    TinyCppmReader
+);
+```
+
+
+## Nouveautés de la version 1.10.2
+
+- Ajout du **MCP4661** double potentiomètre numérique.
+- Deux canaux indépendants : `RCUL_I2C_POT_TX_MCP4661_CHANNEL_0` et `RCUL_I2C_POT_TX_MCP4661_CHANNEL_1`.
+- 257 positions par canal (`0..256`).
+- Adresse I²C par défaut `0x28` (`A2=A1=A0=0`), adresse explicite toujours possible.
+- Écriture uniquement des wipers **volatils** du MCP4661 : les transmissions RCUL répétitives n'écrivent pas dans son EEPROM interne.
+- Conservation intégrale des fonctions V1.10.1 : MCP4561, DS3502, AD5282, INTERNAL, PPMIN, CALLBACK, calibration et stockage des tables.
+- Ajout d'exemples MCP4661 double canal pour **Nano/ATmega328P** et **ESP32**.
 
 ## Nouveautés de la version 1.10.1
 
@@ -38,7 +108,7 @@ MCP23017 / capteurs / commandes
        RculI2cPotTx
               |
               v
-   MCP4561 ou DS3502
+MCP4561 / DS3502 / AD5282 / MCP4661
               |
               v
  entrée analogique de la radio
@@ -74,6 +144,24 @@ MCP23017 / capteurs / commandes
 - table de correction RCUL à 18 points intégrée.
 
 La bibliothèque écrit `0x80` dans le registre de contrôle `0x02` du DS3502. Les changements rapides du registre de curseur restent ainsi volatils et n’usent pas l’EEPROM.
+
+### AD5282
+
+- double potentiomètre numérique I²C ;
+- 256 positions par canal, de `0` à `255` ;
+- deux RDAC indépendants à la même adresse I²C ;
+- adresse par défaut utilisée par la bibliothèque : `0x2C` ;
+- sélection par `RCUL_I2C_POT_TX_AD5282_CHANNEL_0` ou `RCUL_I2C_POT_TX_AD5282_CHANNEL_1`.
+
+### MCP4661
+
+- double potentiomètre numérique I²C ;
+- 257 positions par canal, de `0` à `256` ;
+- deux wipers indépendants à la même adresse I²C ;
+- adresse par défaut utilisée par la bibliothèque : `0x28` ;
+- plage de curseur par défaut utilisée par `RculI2cPotTx` : `4..252` ;
+- sélection par `RCUL_I2C_POT_TX_MCP4661_CHANNEL_0` ou `RCUL_I2C_POT_TX_MCP4661_CHANNEL_1` ;
+- la bibliothèque écrit uniquement les registres de wiper volatils `0x00` et `0x01`, sans solliciter l'EEPROM interne pendant l'émission RCUL.
 
 ## 3. Microcontrôleurs
 
@@ -148,6 +236,42 @@ Il ne faut pas déclarer cette instance `static` sans définir auparavant `RCUL_
 static RculI2cPotTxClass RculI2cPotTx(MCP4561);
 ```
 
+### Choix explicite de l'AD5282
+
+```cpp
+#define RCUL_I2C_POT_TX_CUSTOM_INSTANCE
+#include <RculI2cPotTx.h>
+
+static RculI2cPotTxClass Pot0(
+    AD5282,
+    RCUL_I2C_POT_SYNCRO_INTERNAL,
+    RCUL_I2C_POT_TX_AD5282_CHANNEL_0);
+
+static RculI2cPotTxClass Pot1(
+    AD5282,
+    RCUL_I2C_POT_SYNCRO_INTERNAL,
+    RCUL_I2C_POT_TX_AD5282_CHANNEL_1);
+```
+
+### Choix explicite du MCP4661
+
+```cpp
+#define RCUL_I2C_POT_TX_CUSTOM_INSTANCE
+#include <RculI2cPotTx.h>
+
+static RculI2cPotTxClass Pot0(
+    MCP4661,
+    RCUL_I2C_POT_SYNCRO_INTERNAL,
+    RCUL_I2C_POT_TX_MCP4661_CHANNEL_0);
+
+static RculI2cPotTxClass Pot1(
+    MCP4661,
+    RCUL_I2C_POT_SYNCRO_INTERNAL,
+    RCUL_I2C_POT_TX_MCP4661_CHANNEL_1);
+```
+
+Les deux objets d'un composant double partagent la même adresse I²C ; le dernier argument sélectionne le wiper/RDAC interne.
+
 ## 6. Initialisation
 
 Signature principale :
@@ -199,7 +323,9 @@ void setup()
 `RCUL_I2C_POT_TX_AUTO_ADDRESS` choisit automatiquement :
 
 - `0x2C` pour le MCP4561 ;
-- `0x28` pour le DS3502.
+- `0x28` pour le DS3502 ;
+- `0x2C` pour l’AD5282 ;
+- `0x28` pour le MCP4661.
 
 Une adresse différente peut être passée explicitement.
 
@@ -451,7 +577,7 @@ Affiche la configuration courante :
 
 ```text
 ----------------------------------------
-RculI2cPotTx V1.8.2
+RculI2cPotTx V1.10.2
 Pot type     : DS3502
 I2C driver   : Wire
 I2C address  : 0x28
@@ -535,6 +661,26 @@ La bibliothèque utilise par défaut :
 
 L’adresse réelle dépend du modèle exact et du câblage de ses broches d’adresse. Là encore, le scanner I²C fait foi.
 
+### AD5282
+
+Adresse par défaut utilisée par la bibliothèque :
+
+```text
+0x2C
+```
+
+Les deux RDAC utilisent cette même adresse ; le canal est sélectionné par la commande interne.
+
+### MCP4661
+
+Adresse par défaut utilisée par la bibliothèque :
+
+```text
+0x28
+```
+
+Avec `A2=A1=A0=0`, l'adresse est `0x28`. Une adresse différente peut être passée explicitement à `begin()`. Les deux wipers utilisent la même adresse ; le canal est sélectionné dans la commande interne.
+
 ## 18. Conseils de câblage
 
 - relier toutes les masses ;
@@ -589,7 +735,7 @@ Vérifier et respecter les licences des bibliothèques d’origine lors de toute
 ## AD5282 (ajoute en V1.10.1)
 
 La bibliotheque gere maintenant trois composants : `DS3502`, `MCP4561` et
-`AD5282`. L'AD5282 contient deux potentiometres de 256 positions à la meme
+`AD5282`. L'AD5282 contient deux potentiometres de 256 positions a la meme
 adresse I2C (adresse par defaut `0x2C`).
 
 ```cpp
@@ -630,11 +776,14 @@ static RculI2cPotTxClass Pot1(
 
 ## Synchronisation
 
-Trois modes sont disponibles :
+Les modes disponibles sont :
 
-- INTERNAL (défaut)
-- PPMIN
-- CALLBACK
+- `RCUL_I2C_POT_SYNCRO_INTERNAL` : période locale ;
+- `RCUL_I2C_POT_SYNCRO_BY_PPMIN` : synchronisation fournie par une source `Rcul` telle que `TinyCppmReader` ;
+- `RCUL_I2C_POT_SYNCRO_BY_CALLBACK` : callback générique historique, le sketch appelle `syncPulse()` ;
+- `RCUL_I2C_POT_SYNCRO_BY_CALLBACK_PTR_6A` : profil automatique PTR-6A, la bibliothèque détecte directement le paquet court sur `GDO0`.
+
+Le profil PTR-6A ne change pas la nature du mode CALLBACK : il ajoute seulement une méthode intégrée de détection du top. Les profils suivants pourront être ajoutés dans `CallbackSynchro.h/.cpp` sans changer la forme générale du constructeur.
 
 ## Calibration automatique
 
@@ -658,3 +807,61 @@ Pour plusieurs instances ESP32 :
 Pot0.setTableStoragePreferences("RculAD0");
 Pot1.setTableStoragePreferences("RculAD1");
 ```
+
+---
+
+# Complément V1.10.2
+
+## MCP4661 double canal
+
+Le MCP4661 est ajouté sans supprimer ni modifier le support existant du MCP4561, du DS3502 et de l'AD5282.
+
+```cpp
+static RculI2cPotTxClass Pot0(
+    MCP4661,
+    RCUL_I2C_POT_SYNCRO_BY_PPMIN,
+    CppmReader,
+    RCUL_I2C_POT_TX_MCP4661_CHANNEL_0);
+
+static RculI2cPotTxClass Pot1(
+    MCP4661,
+    RCUL_I2C_POT_SYNCRO_BY_PPMIN,
+    CppmReader,
+    RCUL_I2C_POT_TX_MCP4661_CHANNEL_1);
+```
+
+Les deux objets utilisent la même adresse I²C. La bibliothèque écrit :
+
+- wiper 0 : registre volatil `0x00` ;
+- wiper 1 : registre volatil `0x01`.
+
+Les wipers sont codés sur 9 bits (`0..256`). L'EEPROM interne du MCP4661 n'est pas utilisée pour les changements rapides imposés par RCUL.
+
+### Stockage de deux tables calibrées
+
+Sur Nano/AVR, réserver deux zones EEPROM différentes :
+
+```cpp
+Pot0.setTableStorageEEPROM(0);
+Pot1.setTableStorageEEPROM(64);
+```
+
+Sur ESP32, utiliser deux namespaces différents :
+
+```cpp
+Pot0.setTableStoragePreferences("RculMCP0");
+Pot1.setTableStoragePreferences("RculMCP1");
+```
+
+Puis, au démarrage :
+
+```cpp
+Pot0.useStoredRculTable();
+Pot1.useStoredRculTable();
+```
+
+### Exemples inclus
+
+- `examples/MCP4661_Dual_Nano/MCP4661_Dual_Nano.ino`
+- `examples/MCP4661_Dual_ESP32/MCP4661_Dual_ESP32.ino`
+
