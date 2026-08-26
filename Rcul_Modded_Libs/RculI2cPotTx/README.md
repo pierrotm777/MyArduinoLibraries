@@ -865,3 +865,28 @@ Pot1.useStoredRculTable();
 - `examples/MCP4661_Dual_Nano/MCP4661_Dual_Nano.ino`
 - `examples/MCP4661_Dual_ESP32/MCP4661_Dual_ESP32.ino`
 
+# Bibliothèques utiles
+
+Cette bibliothèque utilise plusieurs autres bibliothèques.  
+Vous les trouverai [ici](https://github.com/pierrotm777/MyArduinoLibraries/tree/main/Rc-Navy_Libs).  
+
+Pour un Arduino Attiny85:  
+- `TinyWireM`  
+- `RcNavyTinyPinChange`  
+- `RcNavySoftRcPulseIn`  
+- `RcNavyTinyCppmReader`  
+
+Pour un Arduino Nano:  
+- `RcNavyTinyPinChange`  
+- `RcNavySoftRcPulseIn`  
+- `RcNavyTinyCppmReader`  
+
+Pour un ESP32:  
+- `RculPWMRead`  
+- `ESP32_PPM`  
+
+Pour les Nano et ESP32:  
+- `RcNavyRcul`
+- `RcNavyRcTxSerial`
+- `RcNavyRcRxSerial` (uniquement pour un décodeur XANY/RCUL)
+
