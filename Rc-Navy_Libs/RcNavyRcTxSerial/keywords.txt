@@ -1,0 +1,38 @@
+#######################################
+# Syntax Coloring Map RcTxSerial
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+RcTxSerial	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+reassignRculDst	KEYWORD2
+setCh	KEYWORD2
+getCh	KEYWORD2
+setTxMode	KEYWORD2
+setRepeatNb	KEYWORD2
+isReadyForTx	KEYWORD2
+sendNibbleMsg	KEYWORD2
+addChecksumToByteMsg	KEYWORD2
+setSweepTest	KEYWORD2
+getSweepTest	KEYWORD2
+process	KEYWORD2
+write	KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+RC_TX_SERIAL_VERSION	LITERAL1
+RC_TX_SERIAL_REVISION	LITERAL1
+RC_TX_BIN_BYTE	LITERAL1
+RC_TX_BIN_NIBBLE	LITERAL1
+RC_TX_SERIAL_NO_REPEAT	LITERAL1
+RC_TX_SERIAL_REPEAT0	LITERAL1
+RC_TX_SERIAL_REPEAT1	LITERAL1
+RC_TX_SERIAL_REPEAT2	LITERAL1
+RC_TX_SERIAL_REPEAT3	LITERAL1
+RC_TX_SERIAL_REPEAT4	LITERAL1
