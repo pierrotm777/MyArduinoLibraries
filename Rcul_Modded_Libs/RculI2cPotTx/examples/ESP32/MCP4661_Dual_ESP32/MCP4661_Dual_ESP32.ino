@@ -13,12 +13,12 @@
  * Adapter les GPIO ADC si nécessaire pour votre carte.
  */
 
-#define SDA_PIN           5
-#define SCL_PIN           6
+#define SDA_PIN           12
+#define SCL_PIN           13
 #define INPUT0_PIN        0
 #define INPUT1_PIN        1
 
-#define MCP4661_ADDRESS   0x28
+#define MCP4661_ADDRESS   0x2F
 #define RCUL_REPEAT       5
 #define RCUL_FIFO_SIZE    8
 
@@ -39,6 +39,15 @@ void setup()
 {
   Serial.begin(115200);
 
+  /* Attendre le port USB, mais pas indéfiniment */
+  uint32_t StartMs = millis();
+  while(!Serial && (millis() - StartMs < 3000))
+  {
+    delay(10);
+  }
+
+  delay(100);
+  
   Wire.begin(
       SDA_PIN,
       SCL_PIN,

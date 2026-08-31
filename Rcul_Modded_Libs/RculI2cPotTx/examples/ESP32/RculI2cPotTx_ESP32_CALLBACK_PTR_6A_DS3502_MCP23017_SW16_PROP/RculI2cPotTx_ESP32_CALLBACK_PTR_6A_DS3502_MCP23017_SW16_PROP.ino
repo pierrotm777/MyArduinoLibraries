@@ -276,7 +276,8 @@ void loop()
     }
 
     if(Cmd == 'd')
-    {
+    { 
+      DebugIsOn = !DebugIsOn;
       Serial.printf("Debug is %s\r\n",DebugIsOn ? "ON":"OFF");
     }
 
