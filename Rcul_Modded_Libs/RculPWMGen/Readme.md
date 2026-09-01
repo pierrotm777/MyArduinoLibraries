@@ -1,75 +1,47 @@
-PwmGen library
-======================
+# RculPWMGen 1.1
 
-**PwmGen** is pseudo-asynchronous library designed to generate RC pulse signals. RC pulse signals are intended to command servos, **E**lectronic **S**peed **C**ontrollers (**ESC**), Brushless Controllers and any devices expecting such a command signal.
-Static and dynamic object allocation are both supported.
-Dynamic deallocation is supported for **PwmGen** instance allocated dynamically.
+Portable software RC pulse generator derived from the timing strategy of
+`SoftRcPulseOut`.
 
-Some examples of use cases:
--------------------------
-* **Servo/ESC/Brushless Controller tester**
-* **Servo sequencer** (look at RcSeq library which uses _PwmGen_)
-* **Robot wheels using modified Servo to support 360° rotation**
-* **RC pulse stretcher** (in conjunction with **SoftRcPulseIn** library)
+Primary targets:
+- ESP32 family, including ESP32-C3 and ESP32-S3
+- Teensy, including Teensy 4.x
 
-Supported Arduinos:
-------------------
-* **RP2040**
-* **Teensy**
-And more I suppose
+## Timing strategy
 
-Tip and Tricks:
---------------
-Develop your project on an arduino UNO or MEGA, and then shrink it by loading the sketch in an ATtiny or Digispark (pro).
+All attached outputs start together every 20 ms. Outputs are sorted by pulse
+width. Interrupts remain enabled during most of each pulse, then are masked only
+for the final `RCUL_PWM_GEN_EDGE_GUARD_US` (16 us by default) before each falling
+edge. Closely spaced edges remain masked between edges.
 
-API/methods:
------------
-* The **PwmGen** library uses the same API as the regular **SoftwareServo** library:
-	* **attach()**: attaches the PwmGen object to a pin
-	* **attached()**: returns if attached
-	* **detach()**: detaches the PwmGen object from a pin
-	* **write()**: write angle in degrees
-	* **read()**: read angle in degrees
-	* **setMinimumPulse()**: set minimum pulse in µs
-	* **setMaximumPulse()**: set maximum pulse in µs
-	* **refresh()**: generate the PwmGen pulse(s) when specified
+Unlike the previous RculPWMGen attempt, `refresh()` does **not** call `yield()`
+while a pulse is active.
 
-* Two additional methods allow using µs rather than angle in ° :
-	* **write_us()**: write the pulse width in µs
-	* **read_us()**: returns the pulse width in µs
+## API
 
-* Extended methods to manage dynamically the instance creation/destruction
-	* **createInstance()**: returns the id of the freshly created instance
-	* **createdInstanceNb()**: returns the number of created instances (including static instances)
-	* **PwmGenById()**: returns a pointer on the corresponding PwmGen object
-	* **getIdByPin()**: returns the Id of the instance attached to a pin
-	* **destroyInstance()**: destroys a dynamically created instance (instance statically created cannot be destroyed)
+Compatible in spirit with SoftRcPulseOut:
 
-* Constants for version management:
-	* **SOFT_RC_PULSE_OUT_VERSION**: returns the library version
-	* **SOFT_RC_PULSE_OUT_REVISION**: returns the library revision
+```cpp
+RculPWMGen Pwm;
+Pwm.attach(5);
+Pwm.write_us(1500);
 
-* Synchronization:
-	* By giving **_1_** or **_true_** as optional argument for the **PwmGen::refresh()** method, the pulses are refreshed immediately (without waiting for the usual 20ms).
+void loop()
+{
+  RculPWMGen::refresh();
+}
+```
 
-	* the **PwmGen::refresh()** method returns **_1_** or **_true_** when the pulses have been refreshed. Testing this return value provides a 20ms timer.
+`refresh()` returns 1 only when a refresh has actually been executed.
+`refresh(1)` forces an immediate refresh.
 
-Design considerations:
----------------------
-The **PwmGen** library relies on a 8 bit timer. This allows using it even on little MCU (such as ATtiny85) which do not have any 16 bit timer.
+## RCUL
 
-Whereas a 8 bit timer is used for pulse generation, the jitter is limited by using the technic of anticipated interrupt masking.
+`RculPWMGen` derives from `Rcul` and implements:
+- `RculIsSynchro()`
+- `RculSetWidth_us()`
+- `RculGetWidth_us()`
 
-Interrups are only masked during rising and falling edges of the pulse signals.
-
-Statically + dynamically created instances are limited to 15.
-
-CAUTION:
--------
-The end user shall also use asynchronous programmation method in the loop() function (not too long blocking functions such as delay(1000): the **PwmGen::refresh()** method shall be called at least every 50ms).
-
-Contact
--------
-
-If you have some ideas of enhancement, please contact me by clicking on: [RC Navy](http://p.loussouarn.free.fr/contact.html).
-
+`RculIsSynchro()` calls `refresh()`. If a protocol engine uses
+`RculIsSynchro()`, do not also call `RculPWMGen::refresh()` independently in the
+same scheduling path.
