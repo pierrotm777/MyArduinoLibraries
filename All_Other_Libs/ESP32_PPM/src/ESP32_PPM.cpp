@@ -73,7 +73,7 @@ void IRAM_ATTR rx_isr_thunk()
 //=====================================================================
 void IRAM_ATTR ESP32_PPM::_rx_isr()
 {
-  s_rx_isr_count++;
+  s_rx_isr_count = s_rx_isr_count + 1;
 
   const uint32_t now = (uint32_t)micros();
   const uint32_t dt  = now - _rx_lastEdgeUs;
@@ -110,7 +110,7 @@ _rx_lastEdgeUs = now;
   if (_rx_idx < _rx_chNb)
   {
     _rx_work[_rx_idx] = v;
-    _rx_idx++;
+    _rx_idx = _rx_idx + 1;
   }
 }
 
@@ -163,8 +163,8 @@ void IRAM_ATTR onTimerISR()
           currentChannelValue = _PpmHeader_us + 100;
 
         timerAlarm(timer, (uint32_t)(currentChannelValue - _PpmHeader_us), true, 0);
-        usedFrameLengthUS += currentChannelValue;
-        ppmChannelIndex++;
+        usedFrameLengthUS = usedFrameLengthUS + currentChannelValue;
+        ppmChannelIndex = ppmChannelIndex + 1;
       }
       break;
     }
@@ -235,7 +235,7 @@ uint8_t ESP32_PPM::isSynchro(uint8_t SynchroClientIdx /*= 7*/)
   uint8_t Ret;
 
   Ret = !!(_Synchro & RCUL_CLIENT_MASK(SynchroClientIdx));
-  if (Ret) _Synchro &= ~RCUL_CLIENT_MASK(SynchroClientIdx); /* Clear indicator */
+  if (Ret) _Synchro = (uint8_t)(_Synchro & (uint8_t)(~RCUL_CLIENT_MASK(SynchroClientIdx))); /* Clear indicator */
 
   return Ret;
 }
@@ -248,6 +248,13 @@ void ESP32_PPM::beginRx(uint8_t rx_pin, uint8_t chNb, bool risingEdge,
 {
   if (chNb < 1) chNb = 1;
   if (chNb > MAX_PPM_CHANNELS_COUNT) chNb = MAX_PPM_CHANNELS_COUNT;
+
+  // Save previous RX pin before changing it
+  const uint8_t old_rx_pin = _rx_pin;
+
+  // Remove previous interrupt only if RX was already active
+  if (old_rx_pin != 255)
+    detachInterrupt(digitalPinToInterrupt(old_rx_pin));
 
   portENTER_CRITICAL(&rxMux);
 
@@ -272,8 +279,9 @@ void ESP32_PPM::beginRx(uint8_t rx_pin, uint8_t chNb, bool risingEdge,
 
   pinMode(_rx_pin, INPUT);
 
-  detachInterrupt(digitalPinToInterrupt(_rx_pin));
-  attachInterrupt(digitalPinToInterrupt(_rx_pin), ::rx_isr_thunk, risingEdge ? RISING : FALLING);
+  attachInterrupt(digitalPinToInterrupt(_rx_pin),
+                  ::rx_isr_thunk,
+                  risingEdge ? RISING : FALLING);
 }
 
 //=====================================================================
